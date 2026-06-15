@@ -1,7 +1,8 @@
 # A1.5 - Automatic hiring & new-role creation -- source index
 
 **Question:** L1.A1.5 (gap-detect -> role-spec -> spawn -> onboard -> retire). **Feeds:** L2.ORG.
-**Status:** seeded / in-review (not yet CRO-PASSED). 13 sources + SYNTHESIS.md.
+**Status:** QA-verified (Bauer 2007 + Saks/Uggerslev/Fassina 2007 paywall blocker closed via open
+abstracts). 13 sources + SYNTHESIS.md.
 
 | # | Source | Tier | Lifecycle stage informed |
 |---|---|---|---|

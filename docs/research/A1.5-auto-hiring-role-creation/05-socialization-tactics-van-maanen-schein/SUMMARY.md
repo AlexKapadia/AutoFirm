@@ -46,3 +46,14 @@ meta-analysed (sources 06, 08). The six-tactic list is reproduced verbatim acros
 The six bipolar tactics and the institutionalized/individualized grouping are reproduced
 identically in Jones (1986, AMJ) and the Saks/Uggerslev/Fassina (2007) and Bauer et al.
 (2007, 2025) meta-analyses; verifiable against any of them.
+
+The Saks/Uggerslev/Fassina meta-analysis is: Saks, A. M., Uggerslev, K. L., & Fassina, N. E.
+(2007), "Socialization tactics and newcomer adjustment: A meta-analytic review and test of a
+model", *Journal of Vocational Behavior*, 70(3), 413-446, DOI 10.1016/j.jvb.2006.12.004.
+Its structural finding (verified via the open ERIC abstract EJ763667 and the publisher abstract):
+**institutionalized socialization tactics were negatively related to role ambiguity, role conflict,
+and intentions to quit, and positively related to fit perceptions, job satisfaction, organizational
+commitment, and job performance; the social tactics (serial + investiture) were the strongest
+predictors of adjustment.** Only this structural direction is relied upon here; no exact corrected
+correlation is asserted (the per-path rho values sit behind the paywall and were deliberately not
+reproduced).

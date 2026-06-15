@@ -3,7 +3,8 @@
 
 **Question:** L1.A1.5 - the org-theory basis for AutoFirm automated dynamic-org lifecycle.
 **Feeds:** L2.ORG (the dynamic, audited, scalable agent-org engine), plus L2.A1/A2/A6.
-**Status:** seeded for QA (not yet CRO-PASSED). 13 sources; one folder each.
+**Status:** QA-verified (paywalled-source blocker closed; Bauer 2007 + Saks 2007 structure
+confirmed against open abstracts). 13 sources; one folder each.
 
 ---
 
@@ -113,8 +114,20 @@ spawn/retire are fail-closed decision-gated (A7); the loop runs on a heartbeat t
   citation, DOI, or number; unverifiable items omitted; paywalled-only numbers described
   structurally rather than invented.
 
-**QA verification note:** the per-path corrected correlations in Bauer et al. (2007) and the
-institutionalized-tactics correlations in Saks et al. (2007) are paywalled; the model STRUCTURE was
-cited (verified via open abstracts + the open PDX copy + the 2025 corroboration) and exact rho
-values were deliberately NOT fabricated. QA should spot-fetch DOIs 10.1037/0021-9010.92.3.707 and
-10.1177/01492063241277168 to confirm structure.
+**QA verification note (CLOSED):** the *exact per-path corrected correlations* in Bauer et al.
+(2007) and Saks, Uggerslev & Fassina (2007) sit behind a paywall and were deliberately NOT
+reproduced; only the model STRUCTURE / direction-of-effect is relied upon, and that structure is
+now verified against accessible authoritative sources:
+- **Bauer, T. N., Bodner, T., Erdogan, B., Truxillo, D. M., & Tucker, J. S. (2007).** "Newcomer
+  adjustment during organizational socialization: A meta-analytic review of antecedents, outcomes,
+  and methods." *Journal of Applied Psychology*, 92(3), 707-721. DOI 10.1037/0021-9010.92.3.707.
+  Verbatim abstract (PDX open-access, pdxscholar.library.pdx.edu/busadmin_fac/27/) confirms the
+  three adjustment indicators (role clarity, self-efficacy, social acceptance), the mediation
+  model, k=70 unique samples, and the five distal outcomes. **VERIFIED.**
+- **Saks, A. M., Uggerslev, K. L., & Fassina, N. E. (2007).** "Socialization tactics and newcomer
+  adjustment: A meta-analytic review and test of a model." *Journal of Vocational Behavior*, 70(3),
+  413-446. DOI 10.1016/j.jvb.2006.12.004. Open ERIC abstract (EJ763667) confirms institutionalized
+  tactics are negatively related to role ambiguity/conflict/intentions-to-quit and positively to
+  fit/satisfaction/commitment/performance, with social tactics strongest. **VERIFIED.** (NB: this
+  is the Saks/Uggerslev/Fassina meta in J. Vocational Behavior, not Saks 2006 on engagement; DOI
+  10.1177/01492063241277168 belongs to source [08], the 2025 J. Management meta, not Saks.)
