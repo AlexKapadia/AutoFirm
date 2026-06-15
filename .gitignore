@@ -1,0 +1,46 @@
+# --- Secrets & environment (NEVER commit) ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+.autofirm/secrets/
+
+# --- Runtime state, logs, audit spool (machine-local) ---
+.autofirm/state/
+.autofirm/runtime/
+logs/
+*.log
+
+# --- Node ---
+node_modules/
+dist/
+build/
+.next/
+coverage/
+*.tsbuildinfo
+.turbo/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# --- OS / IDE ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# --- Analysis artifacts that are regenerated (keep evidence/ committed, ignore scratch) ---
+evidence/_scratch/
+*.tmp
