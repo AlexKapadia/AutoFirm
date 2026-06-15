@@ -132,9 +132,17 @@ B1's growth-cycle logic. Handoffs implied but no contracts named (also QA-REVIEW
 
 ## Carried-forward prerequisites (LAYER1-SIGNOFF §5)
 Not tensions, but binding gates recorded here for traceability:
-- **A1.5 must flip to CRO-PASSED** (Bauer 2007 / Saks 2007 DOIs verified or open-access substituted)
-  **before L2.ORG / the dynamic-org engine merges to main** (org-model §7).
+- **A1.5 is CRO-verified — discharged.** Bauer et al. 2007 JAP (DOI 10.1037/0021-9010.92.3.707) and
+  Saks/Uggerslev/Fassina 2007 JVB (DOI 10.1016/j.jvb.2006.12.004) are confirmed against accessible
+  primary sources. The dynamic-org engine's merge to main is **no longer blocked on A1.5**; it remains
+  gated only on experiment **E2** re-proving dynamic-beats-static on AutoFirm's own golden set (T4).
 - **Confirm A9.3 (mutation/test-adequacy) and A7.* are CRO-PASSED**, since B14 and several L2 items
   depend on them at the gate.
 - **L1.B4.2 (customer/CLV cohort-retention) consolidation + B4.3 (ops modeling) cross-reference** to
-  be discharged in the L2.B4 toolkit (LAYER1-SIGNOFF Note A).
+  be discharged in the L2.B4 toolkit (LAYER1-SIGNOFF Note A). This is a **synthesis-consolidation task,
+  not a method bake-off**, so it correctly carries **no E-experiment** — its absence from E1–E8 is
+  intentional, not an omission.
+- **B6 fundraising instrument-economics (venture-debt / RBF) remains under-sourced and self-gated.**
+  B6's quantitative venture-debt/RBF claims stay **fail-closed-gated** until a peer-reviewed source
+  lands; carried forward into **Layer-2 B6** as a binding fail-closed prerequisite so the self-gate is
+  not lost between layers.

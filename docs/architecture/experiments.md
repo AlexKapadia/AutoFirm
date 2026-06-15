@@ -110,3 +110,9 @@
 - Record **why the winner won** (the numbers) in `evidence/` to peer-reviewed standard (CLAUDE.md
   §3.10): means ± CI, the A9 test used, mutation score, and the per-experiment metric above.
 - **Never overfit** to the golden set; correctness argued from invariants/properties (CLAUDE.md §3.9).
+
+> **Note — intentional non-experiments.** **B4.2/B4.3 (customer/CLV cohort-retention + operational
+> modeling) consolidation** is a **Layer-2 B4 synthesis task, not a method bake-off**, so it has **no
+> E-experiment** by design — its absence from E1–E8 is intentional, not an omission (see
+> `tension-resolutions.md` carried-forward). **B6 venture-debt/RBF instrument-economics** likewise has
+> no E-experiment yet: it stays fail-closed-gated on a peer-reviewed source landing in L2.B6.

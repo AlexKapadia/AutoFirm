@@ -90,7 +90,8 @@ records. (CLAUDE.md §3.5, §3.11; A7 trusted-plan/untrusted-data separation.)
 ### 2.1 Dynamic org (A1, A1.5, B1)
 A **hierarchical orchestrator-worker spine, 3 tiers** (plan → dynamic role-design → scoped
 execution), chosen because centralized coordination amplifies error 4.4× vs 17.2× for peer mesh
-(A1, Google Research). Fan-out is capped at **~3–4 agents per cluster** (A1 saturation point) and
+(A1, Google Research *blog* — Low–Moderate tier, **directional only**; experiment **E1** is the
+acceptance bar, not the blog figure). Fan-out is capped at **~3–4 agents per cluster** (A1 saturation point) and
 gated by a routing predicate (multi-agent IFF breadth-first ∧ low-dependency ∧ exceeds one context
 window ∧ quality gain clears ~15× cost — A1). Roles are **data, not code** (A1.5, see `org-model.md`),
 hired/fired/re-scoped on a heartbeat by a 5-stage lifecycle. Org *shape* per client follows

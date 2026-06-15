@@ -4,14 +4,17 @@
 > (org-design theory), with the A7/A8 least-privilege fence and the A6 audit plane. Roles are
 > **data**, the org **re-shapes itself on a heartbeat**, and `main`-equivalent org state stays clean
 > (no graveyard — CLAUDE.md §3.8). Every state transition is **fail-closed and audited**.
-> **Blocking prerequisite (LAYER1-SIGNOFF Note B):** A1.5 is not yet CRO-PASSED — its two paywalled
-> DOIs (Bauer 2007, Saks 2007) must be spot-fetched/substituted before this engine merges to main.
+> **A1.5 is CRO-verified** (Bauer et al. 2007 JAP DOI 10.1037/0021-9010.92.3.707 and Saks/Uggerslev/
+> Fassina 2007 JVB DOI 10.1016/j.jvb.2006.12.004, confirmed against accessible primary sources). The
+> dynamic-org engine's merge to main is therefore **no longer blocked on A1.5** — it remains gated only
+> on experiment **E2** re-proving dynamic-beats-static on AutoFirm's own golden set (per T4).
 
 ---
 
 ## 1. Shape: hierarchical orchestrator-worker, roles-as-data (A1, A1.5)
 - **3-tier spine (A1):** Tier-0 orchestrator (plan/dispatch/gate) → Tier-1 dynamic role-design →
-  Tier-2 scoped execution. Centralized because error amplification is 4.4× vs 17.2× for peer mesh.
+  Tier-2 scoped execution. Centralized because error amplification is 4.4× vs 17.2× for peer mesh
+  (Google Research *blog*, Low–Moderate tier, **directional only**; experiment **E1** is the acceptance bar).
 - **Strict hierarchy:** every role has exactly one `reports_to` manager (`RoleSpec`, see
   `data-contracts.md` §2). No matrix ambiguity at the platform level.
 - **Span control (B1):** roster width follows the **Graicunas curve** `C(n)=n(2^(n−1)+n−1)` and
@@ -107,7 +110,8 @@ platform produces**, evaluated like any other deliverable.
 ---
 
 ## 7. Gate to merge this engine to main
-1. A1.5 flipped to CRO-PASSED (DOIs verified or open-access substituted) — **blocking**.
+1. A1.5 is **CRO-verified** (Bauer 2007 / Saks 2007 DOIs confirmed against accessible primary
+   sources) — **satisfied**; this is no longer a blocking prerequisite for merge.
 2. Experiment **E2** (dynamic-vs-static org engine, `experiments.md`) re-proves "dynamic roles beat
    fixed roster" **on AutoFirm's own org golden set under A9's Friedman+Nemenyi** — the external
    HALO +14.6% number is **not** an acceptance bar (resolves T4).
