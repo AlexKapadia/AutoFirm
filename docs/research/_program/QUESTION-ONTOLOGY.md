@@ -62,6 +62,7 @@ start until its Layer-2 dependencies are PASSED. The CRO enforces this gate.
 - B12 Cross-industry generalization (the "any company" question)
 - B13 Product & design capability for client builds (UI/UX, design systems, accessibility, live E2E)
 - B14 Software delivery & engineering quality for client products (CI/CD, test strategy, code quality)
+- B15 Professional artifact-generation capability (financial models, slide decks, documents)
 
 ---
 
@@ -73,6 +74,10 @@ start until its Layer-2 dependencies are PASSED. The CRO enforces this gate.
 - **L1.A1.2** When does multi-agent beat a single strong agent? (evidence, not assumption.)
 - **L1.A1.3** Hierarchical/role-based orchestration patterns (HALO-style) & dynamic role assignment.
 - **L1.A1.4** Coordination-cost / context-flooding theory (information-processing view).
+- **L1.A1.5** **Hiring & new-role creation in real orgs** — how firms detect a capability gap,
+  author a role spec, hire/onboard, and retire roles (workforce planning, role-charter design):
+  the org-theory basis for AutoFirm's automated **gap-detect → manager-authored role-spec → spawn
+  → onboard → retire** lifecycle (single-writer + must_study rules). Feeds L2.ORG.
 
 ## A2 Agent communication & workflow
 - **L1.A2.1** Agent communication protocols & message schemas (typed contracts, ACL lineage).
@@ -99,6 +104,12 @@ start until its Layer-2 dependencies are PASSED. The CRO enforces this gate.
 - **L1.A6.1** Provenance models (what/when/who; FHIR-Provenance/AuditEvent-style, W3C PROV).
 - **L1.A6.2** Immutable append-only audit logs & tamper-evidence.
 - **L1.A6.3** Governance-aware telemetry & closed-loop enforcement.
+- **L1.A6.4** **Workspace organization & the public/private data boundary** — clean folder
+  structure + naming for the repo and per-company workspaces, and the **hard separation of the
+  public version-controlled codebase from finance/company-sensitive data that must NEVER be
+  committed or deployed** (gitignored private workspace, enforced in the data layer not by
+  convention), plus the **organizer/librarian role** that keeps both intact. Ties to A8.2/A8.3,
+  L1.B4.4 (PII boundary), A7.3 (fail-closed). (CLAUDE.md §3.12, §5.6, §5.7.)
 
 ## A7 Safety & control of autonomous agents
 - **L1.A7.1** Threat models for agentic AI (TRiSM; prompt injection; tool misuse).
@@ -199,6 +210,19 @@ start until its Layer-2 dependencies are PASSED. The CRO enforces this gate.
 - **L1.B14.3** Code-organisation & maintainability (self-documenting naming, file-size limits,
   module boundaries — CLAUDE.md §5.7) and secure-SDLC for delivered software (SAST/DAST/dep-scan).
 
+## B15 Professional artifact-generation capability
+> How best-in-class business artifacts are *actually* produced, so agents generate genuinely
+> excellent (not templated) deliverables. Distinct from B13 (UIs) / B14 (software); runs under the
+> A6.4 workspace/data boundary; financial-model logic ties to L1.B4.1.
+- **L1.B15.1** **Financial models / spreadsheets (Excel)** — institutional model-build standards
+  (FAST/SMART, 3-statement/DCF structure, formatting & audit conventions) + programmatic generation
+  (openpyxl/xlsxwriter-class libs; live formulas, not dead values).
+- **L1.B15.2** **Slide decks (PowerPoint)** — consulting/IB-grade deck craft (pyramid principle,
+  message-titled slides, data-ink, chart design) + programmatic generation (python-pptx-class libs)
+  that avoids the templated/AI-slop look.
+- **L1.B15.3** **Documents** — professional long-form deliverables (memos, reports, contracts:
+  structure, tone, typography) + programmatic generation (DOCX/PDF/Markdown→PDF pipelines).
+
 ---
 
 # LAYER 2 — APPLIED (design options + evidence-backed choices)
@@ -214,14 +238,16 @@ start until its Layer-2 dependencies are PASSED. The CRO enforces this gate.
   ← L1.A4.*, L1.A6.1.
 - **L2.A5** Define the CLI-substrate execution model (sessions, subagents, MCP, watchdog)
   ← L1.A5.*, L1.A3.3.
-- **L2.A6** Design provenance + append-only audit + roles-as-data audit trail ← L1.A6.*, L1.A1.3.
+- **L2.A6** Design provenance + append-only audit + roles-as-data audit trail, **plus the workspace
+  layout + public/private data-boundary scheme and the organizer/librarian role** ← L1.A6.*
+  (incl. **L1.A6.4**), L1.A1.3, L1.A8.2-3, L1.B4.4.
 - **L2.A7** Design the safety/control stack (kill-switch, HITL gates, fail-closed, least-priv)
   ← L1.A7.*, L1.A8.2-3.
 - **L2.A8** Design the integration & multi-tenant data layer ← L1.A8.*, L1.A6.2.
 - **L2.A9** Design the platform's own evaluation harness + tests-with-teeth ← L1.A9.*.
-- **L2.ORG** Design the **dynamic, audited, scalable agent-org engine** (spawn/retire/re-scope,
-  span caps, mgmt+QA functions) ← L1.B1.*, L1.A1.3, L1.A6.*, L1.A7.*. *(directly informs
-  RESEARCH-ORG.md and the live platform.)*
+- **L2.ORG** Design the **dynamic, audited, scalable agent-org engine** (gap-detection →
+  manager-authored role-spec → spawn → onboard → retire, span caps, mgmt+QA functions) ← L1.B1.*,
+  L1.A1.3, **L1.A1.5**, L1.A6.*, L1.A7.*. *(directly informs RESEARCH-ORG.md and the live platform.)*
 
 **Business playbook design (per function — must be industry-parameterized)**
 - **L2.B2** A function-decomposition engine that maps any company → automatable functions
@@ -242,6 +268,10 @@ start until its Layer-2 dependencies are PASSED. The CRO enforces this gate.
   ← L1.B13.*, L1.A9.* (eval rigor).
 - **L2.B14** The AutoFirm **client software-delivery engine** (CI/CD + tests-with-teeth + code-org +
   secure-SDLC applied to shipped client code) ← L1.B14.*, L1.A9.3, L1.A7.*.
+- **L2.B15** The AutoFirm **artifact-generation engine** (auto-produce institutional-grade
+  spreadsheets/models, decks, and documents — live formulas, message-titled storylines, no
+  templated/AI-slop output) ← L1.B15.*, L1.B4.1 (model logic), L1.A6.4 (writes into the private
+  workspace, never the public repo).
 
 ---
 
@@ -251,7 +281,8 @@ start until its Layer-2 dependencies are PASSED. The CRO enforces this gate.
   governance + safety + data + eval as one fail-closed system) ← all L2.A* + L2.ORG.
 - **L3.BUSINESS** The integrated company-building operating doctrine (validate→build→fund→
   market→sell→operate→support, **plus design-build (L2.B13) and software-delivery (L2.B14)** of the
-  client products themselves, generalized by industry) ← all L2.B* (incl. L2.B13, L2.B14).
+  client products themselves, generalized by industry, **plus artifact generation (L2.B15)**)
+  ← all L2.B* (incl. L2.B13, L2.B14, L2.B15).
 - **L3.WHOLE** How platform + doctrine compose: the dynamic agent-company that runs ANY company,
   end-to-end, with evidence it generalizes ← L3.PLATFORM + L3.BUSINESS.
 
@@ -259,31 +290,9 @@ start until its Layer-2 dependencies are PASSED. The CRO enforces this gate.
 
 ## Dependency graph (critical edges)
 
-```
-L1.A1,A2 ─┐
-L1.B1.1  ─┼─► L2.A1 ─┐
-L1.A3    ─┼─► L2.A3 ─┤
-L1.A4,A6 ─┼─► L2.A4 ─┤
-L1.A5    ─┼─► L2.A5 ─┼─► L3.PLATFORM ─┐
-L1.A6    ─┼─► L2.A6 ─┤                │
-L1.A7,A8 ─┼─► L2.A7 ─┤                ├─► L3.WHOLE
-L1.A8    ─┼─► L2.A8 ─┤                │
-L1.A9    ─┼─► L2.A9 ─┘                │
-L1.B1,A1,A6,A7 ─► L2.ORG ────────────┘
-L1.B2,B1     ─► L2.B2  ─┐
-L1.B3,B4     ─► L2.B3  ─┤
-L1.B4.1-4    ─► L2.B4  ─┤   (L1.B4.4 public-data sourcing/PII boundary gates L2.B4)
-L1.B5.1,B4.2 ─► L2.B5  ─┤
-L1.B6.1,B4.1 ─► L2.B6  ─┤
-L1.B7.1,B4.2 ─► L2.B7  ─┤
-L1.B8.1,B7.1 ─► L2.B8  ─┤   (marketing→sales handoff edge)
-L1.B9.1,B8.1 ─► L2.B9  ─┼─► L3.BUSINESS ───► L3.WHOLE
-L1.B10.1,A7  ─► L2.B10 ─┤
-L1.B11.1,B4.3─► L2.B11 ─┤
-L1.B13.*,A9  ─► L2.B13 ─┤   (client product/design + live-E2E)
-L1.B14.*,A9.3,A7 ─► L2.B14 ─┤   (client software delivery/quality)
-L1.B12.*     ─► L2.B12 ─┘   (proven on the FIXED industry panel golden set)
-```
+The full critical-edge graph (incl. the new L1.A1.5→L2.ORG, L1.A6.4→L2.A6, and L1.B15.*→L2.B15
+edges) lives in the sibling file **`DEPENDENCY-GRAPH.md`** to keep this file navigable. Every edge
+is also stated inline in each L2 entry's `←` clause above; the ontology remains the source of truth.
 
 **Cross-half edges (do not miss):** L1.B1.1 (org theory) feeds L2.A1 and L2.ORG — the platform's
 orchestration IS organizational design. L1.A6/A7 (governance/safety) feed both halves: every
