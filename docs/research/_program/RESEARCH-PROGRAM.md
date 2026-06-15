@@ -46,9 +46,11 @@ ASSIGN ─► SCOUT (find full source set) ─► SUMMARIZE (one folder per sour
 
 The QA function (RESEARCH-ORG.md §3.5) audits four axes, each PASS/FAIL with a written reason:
 
-1. **Citation faithfulness** — formulae/numbers/quotes match the source exactly; QA **spot-fetches
-   a random sample** of sources to confirm they resolve and say what is claimed (reproducibility
-   check — directly answering the agent-eval finding that <20% of studies verify their numbers).
+1. **Citation faithfulness** — formulae/numbers/quotes match the source exactly; QA **spot-fetches a
+   defined sample — ≥ 20% of the question's sources (min 2) and 100% of safety/correctness-critical
+   formulae/quantitative claims** (DEPTH-RUBRIC §3.5) — to confirm they resolve and say what is
+   claimed (reproducibility check — directly answering the agent-eval finding that <20% of studies
+   verify their numbers).
 2. **Depth** — source counts + tiers meet DEPTH-RUBRIC §1–2; full alternative space surveyed §4.
 3. **Coverage** — no missing sub-branch; all ontology dependencies PASSED.
 4. **Real-world usefulness** — `BEST-PARTS.md` states a concrete, general, build-relevant
@@ -76,6 +78,10 @@ RESEARCH ─► QA ─► (FAIL?) ─► HARDEN (add sources / fix citation / su
 - A FAIL is not a setback — it is the mechanism. If a question PASSes on the first try with
   thin sourcing, QA treats that as a smell and probes harder (mirrors §3.6 "if everything
   passes first try, make it harder").
+- **Circuit-breaker (loop cannot spin forever):** if a single question FAILs **≥ 3 times**
+  (oscillation), the loop is halted and **CRO arbitration is mandatory** — the CRO re-scopes,
+  splits, or re-teams the question (RESEARCH-ORG.md §5.1). The iterate-to-perfection loop is
+  bounded, not infinite.
 - **Gap detection** runs continuously: the Program Architect re-scans the ontology each wave for
   missing branches and dangling dependencies; new gaps spawn new questions (and, if needed, new
   roles — RESEARCH-ORG.md §5).
@@ -98,7 +104,9 @@ Turning PASSED research into the AutoFirm design:
    (no graveyard, CLAUDE.md §3.8/§4.4).
 4. **Emit the architecture spec** (`docs/architecture/`) and **operating doctrine**, each line
    tracing back to a PASSED question + its evidence. Generality is mandatory: a decision tied to
-   one example/industry is rejected (CLAUDE.md §3.9).
+   one example/industry is rejected (CLAUDE.md §3.9). The Program Architect declares the **fixed
+   diverse industry panel** (QUESTION-ONTOLOGY.md B12) as the generalization golden set up front,
+   and every business playbook must produce a sensible result for **all** panel rows (CLAUDE.md §4.5).
 5. **Evidence showcase:** quantitative findings flow into `evidence/` (stats + PNG/HTML charts +
    B&W flow diagrams), analysis-only deps isolated from runtime (CLAUDE.md §3.10).
 
@@ -120,9 +128,11 @@ Per-question index files live at the branch root (e.g. `docs/research/agent-comm
 INDEX.md`) listing the question IDs, their sources, and current status (assigned / in-review /
 PASSED). The `_program/` folder (this file + the other three) is the durable program spec.
 
-Existing seed branches present: `agent-communication-and-flow/`, `claude-code-substrate/`,
-`evaluation-and-evidence/`, `integration-and-data-layer/` (map to A2, A5, A9, A8). Remaining
-branches are created on first assignment.
+Seed branches scaffolded with source folders on disk (verified 2026-06-15): `agent-communication-
+and-flow/` (8 sources, A2), `claude-code-substrate/` (2 sources, A5), `evaluation-and-evidence/`
+(4 sources, A9), `integration-and-data-layer/` (9 sources, A8). All four contain source folders;
+none has yet been QA-PASSED, so they are **seeded, not answered**. Remaining branches — including
+the new **B13** (product/design) and **B14** (software delivery) — are created on first assignment.
 
 ---
 

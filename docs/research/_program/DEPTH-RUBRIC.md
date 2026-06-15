@@ -60,7 +60,11 @@ Fabrication or misrepresentation of a source is the **single most serious defect
 3. **Quantitative claims carry the exact number + units + the table/figure/page** they came from.
 4. **Quote when in doubt.** Prefer a short exact quote (with quotation marks + locator) over a
    loose paraphrase for any contested or load-bearing statement.
-5. **No dead/unverifiable citations.** QA spot-fetches a sample; an unresolvable URL/DOI → FAIL.
+5. **No dead/unverifiable citations.** QA spot-fetches a defined sample — **≥ 20% of the question's
+   sources (minimum 2), and 100% of all safety/correctness-critical formulae and quantitative
+   claims** — confirming each resolves and says what is claimed; an unresolvable URL/DOI → FAIL.
+   ("A sample" is never left to reviewer discretion — this closes the verification loophole and
+   directly beats the agent-eval finding that <20% of studies verify their numbers.)
 6. **No hallucinated sources.** Every reference must be a real, retrievable artifact. QA verifies
    existence; a non-existent source is fabrication → FAIL + escalation to CRO.
 

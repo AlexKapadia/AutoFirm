@@ -203,3 +203,38 @@ All fixes are local edits to the four existing files — no re-architecture.
 **Layer 1 may proceed: YES** — conditional on fixes #1, #2, #3 (blockers) being folded into the
 Wave-1 plan *before researchers are assigned to artifacts*, and #4–#7 added to the ontology before
 Layer-1 scouting begins on the affected branches. Fixes #8–#13 may land during Wave 1.
+
+---
+
+## Fixes applied (round 1)
+
+All blockers and high/medium-priority fixes have been folded into the blueprint files:
+
+| # | Fix | File(s) changed | Status |
+|---|---|---|---|
+| 1 | Single-writer artifact lock — fail-closed, refuse-don't-reconcile | RESEARCH-ORG §1 principle 6, §5 SPAWN/RE-SCOPE preconditions | ✅ applied |
+| 2 | B13 Product & Design capability (L1.B13.1-5 + L2.B13) wired to L3.BUSINESS | QUESTION-ONTOLOGY | ✅ applied |
+| 3 | `must_study: [CLAUDE.md, DEPTH-RUBRIC, branch]` on every role, verified at SPAWN | RESEARCH-ORG §1 principle 1, §3.1 | ✅ applied |
+| 4 | B14 Software-delivery/engineering-quality (L1.B14.1-3 + L2.B14) | QUESTION-ONTOLOGY | ✅ applied |
+| 5 | L1.B4.4 public-data sourcing + PII boundary feeding L2.B4 | QUESTION-ONTOLOGY | ✅ applied |
+| 6 | Expanded L2.B5..B11 into individual questions + per-function dependency edges | QUESTION-ONTOLOGY (L2 + graph) | ✅ applied |
+| 7 | Fixed 8-industry panel (B2B/B2C, regulated/unregulated, physical/digital) as B12 golden set | QUESTION-ONTOLOGY B12 + RESEARCH-PROGRAM §5 | ✅ applied |
+| 8 | QA spot-fetch sample size (≥20% of sources / min 2, 100% of critical formulae) | DEPTH-RUBRIC §3.5 + RESEARCH-PROGRAM §3 | ✅ applied |
+| 9 | Rework-loop circuit-breaker (≥3 FAILs → mandatory CRO arbitration) | RESEARCH-ORG §5.1 + RESEARCH-PROGRAM §4 | ✅ applied |
+| 12 | No-self-dependency-review clause for QA | RESEARCH-ORG §3.5 | ✅ applied |
+| 11 | Seed-branch wording corrected to verified disk reality | RESEARCH-PROGRAM §6 | ✅ corrected* |
+
+\* **Correction of record:** the original C4.1 finding stated only `claude-code-substrate/` and
+`integration-and-data-layer/` contained source folders. On re-verification (2026-06-15) **all four**
+seed branches contain source folders (`agent-communication-and-flow/` = 8, `claude-code-substrate/`
+= 2, `evaluation-and-evidence/` = 4, `integration-and-data-layer/` = 9). The §6 "present" claim is
+therefore accurate; wording was tightened to "seeded, not answered" (none is QA-PASSED yet) so the
+program doc holds itself to its own faithfulness bar.
+
+**Deferred (not blockers; flagged to CRO):** #10 operational independence test (DEPTH-RUBRIC §1
+tightening), #13 CLAUDE.md placeholder substitution (blocks L2 build questions, not L1 literature),
+and C1.5 platform cost/unit-economics question (nice-to-have for Wave 1, mandatory before L2). All
+three remain open and are recorded here for the CRO to schedule.
+
+**Net verdict after round 1:** the three BLOCKERS (#1, #2, #3) and the four HIGH-priority coverage
+fixes (#4–#7) are closed, so the AMBER conditions for spawning Wave-1 teams are satisfied.

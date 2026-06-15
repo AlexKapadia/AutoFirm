@@ -15,9 +15,16 @@
 ## 1. Design principles (why this shape)
 
 1. **Roles-as-data, dynamic.** Every role is a typed record (id, mandate, parent, tools,
-   context-scope, success-criteria, status) — not hard-coded. Managers spawn/retire/re-scope
-   reports at runtime. Mirrors the platform requirement: hire/fire/re-scope, strict audited
-   hierarchy, every manager defines its reports' roles.
+   context-scope, success-criteria, status, **`must_study`**) — not hard-coded. Managers
+   spawn/retire/re-scope reports at runtime. Mirrors the platform requirement: hire/fire/
+   re-scope, strict audited hierarchy, every manager defines its reports' roles.
+   **Mandatory onboarding contract — `must_study`:** every role record carries a
+   `must_study: [CLAUDE.md, DEPTH-RUBRIC.md, <assigned ontology branch>]` field. It is
+   **verified at SPAWN and is a fail-closed gate: no role activates (status → active) until
+   its `must_study` set is present and acknowledged.** A spawn with a missing/empty
+   `must_study` is **refused**, not silently fixed. This guarantees every agent has read and
+   conforms to the behavioural contract (CLAUDE.md), the quality bar (DEPTH-RUBRIC.md), and
+   the slice of the ontology it owns before it touches any artifact.
 2. **Strict, audited hierarchy with bounded span of control.** Contingency theory: high task
    uncertainty (novel research) → narrower spans, more lateral coordination. **Hard cap: a
    manager directly supervises ≤ 7 reports** (Mintzberg/classic span limits); beyond that,
@@ -34,6 +41,16 @@
    are expert and autonomous, we coordinate by **standardizing outputs** (the artifact
    schemas + DEPTH-RUBRIC) rather than micromanaging method — Mintzberg's "standardization of
    outputs/skills" fits high-expertise work.
+6. **Single-writer artifact lock (hard, fail-closed).** Every writable artifact — each
+   `docs/research/<branch>/<source>/` folder, each `SUMMARY.md`/`BEST-PARTS.md`, each branch
+   `INDEX.md`, each `_program/` spec file — has **at most one owning role at any instant**.
+   Ownership is an **exclusive assignment lock** acquired *before* work begins, not
+   reconciled after the fact. **No two agents ever own or write the same artifact
+   concurrently.** A SPAWN/RE-SCOPE/assignment whose mandate would write an already-locked
+   artifact is **REFUSED** at the precondition check (§5) — never granted and merged later.
+   This is the strongest of the fail-closed invariants and supersedes the older
+   detect-and-merge behaviour for write conflicts (Org-Mgmt de-dup, §3.6, now operates
+   *only* on read/scout overlap and never as the primary guard against double-writes).
 
 ---
 
@@ -111,7 +128,10 @@ All four top-level functions report to the **CRO**. The **North Star/CCO** revie
   a sample of source fetches to confirm citations resolve (addresses the agent-eval
   reproducibility gap: <20% of studies do statistical/verification checks — we will).
 - **Independence:** never reports through a Domain Lead; reports directly to CRO. Reviewer of a
-  question must not be its author (generator/evaluator split — CLAUDE.md §4.9).
+  question must not be its author (generator/evaluator split — CLAUDE.md §4.9). **No-self-dependency
+  review:** a QA reviewer also may not review a question that **depends on a question they
+  authored** — reviewing your own upstream work is a disguised self-review and is refused
+  (fail-closed); the CRO assigns a different reviewer.
 - **Staffing:** ≥ 1 QA reviewer per ~6 questions in flight; +1 dedicated **faithfulness
   auditor** whenever a wave touches formulae/quantitative claims.
 
@@ -180,6 +200,7 @@ audit event `{event, role_id, parent_id, actor, timestamp, reason}`.
 | New domain appears in ontology | SPAWN a Domain Lead + seed team |
 | Two teams overlap on same source/question | Org-Mgmt halts dup; CRO merges/re-scopes |
 | QA FAIL rate on a branch > threshold | CRO adds a Senior + a faithfulness auditor |
+| **Single question FAILs ≥ 3 times (oscillation)** | **Rework-loop circuit-breaker: mandatory CRO arbitration** — the iterate-to-perfection loop is halted and the CRO rules (re-scope the question, swap the team, or split it) so the loop cannot spin forever (mirrors RESEARCH-PROGRAM §4). |
 | Branch fully PASSED, no dependents | RETIRE the team (no graveyard) |
 
 ---

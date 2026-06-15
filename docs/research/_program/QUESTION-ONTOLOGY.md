@@ -60,6 +60,8 @@ start until its Layer-2 dependencies are PASSED. The CRO enforces this gate.
 - B10 Legal, compliance & risk
 - B11 Operations & supply/delivery
 - B12 Cross-industry generalization (the "any company" question)
+- B13 Product & design capability for client builds (UI/UX, design systems, accessibility, live E2E)
+- B14 Software delivery & engineering quality for client products (CI/CD, test strategy, code quality)
 
 ---
 
@@ -133,6 +135,12 @@ start until its Layer-2 dependencies are PASSED. The CRO enforces this gate.
 - **L1.B4.1** Financial modeling foundations (3-statement, DCF, unit economics, cohort).
 - **L1.B4.2** Customer modeling (CAC/LTV, retention/cohort, segmentation).
 - **L1.B4.3** Operational modeling (capacity, throughput, queueing/forecasting).
+- **L1.B4.4** Public-data sourcing + PII boundary — where/how AutoFirm legally obtains REAL public
+  data (annual reports, public registries, regulatory filings, public APIs), source ToS/scraping
+  legality, and the **hard synthetic-only-for-sensitive boundary**: real public corporate data is
+  allowed; **real PII, client data, or confidential/deal documents are NEVER used** in tests or
+  validation (CLAUDE.md §3.12 public-data-only final gate + §5.6 fail-closed data handling).
+  Operationalizes the §3.12 validation gate and feeds L2.B4.
 
 ## B5–B11 (function foundations — each = theory + cross-industry evidence)
 - **L1.B5.1** Pricing & monetization theory (value-based, cost-plus, dynamic; willingness-to-pay).
@@ -146,6 +154,50 @@ start until its Layer-2 dependencies are PASSED. The CRO enforces this gate.
 ## B12 Cross-industry generalization
 - **L1.B12.1** What makes a business playbook **general** vs. industry-specific (the invariants).
 - **L1.B12.2** Industry-classification schemes (NAICS/GICS) as a parameterization for playbooks.
+
+> **FIXED industry panel (the B12 generalization golden set).** The Program Architect declares this
+> diverse, fixed panel up front (CLAUDE.md §4.5); every generalization claim (L1.B12, L2.B12) is
+> proven against ALL of it, not asserted. The panel deliberately spans B2B/B2C, regulated/
+> unregulated, and physical/digital so "any company" is tested, not claimed:
+>
+> | # | Industry | B2B/B2C | Regulated? | Physical/Digital |
+> |---|---|---|---|---|
+> | 1 | B2B SaaS | B2B | Light | Digital |
+> | 2 | Professional services / consulting | B2B | Light | Services |
+> | 3 | Discrete manufacturing | B2B | Moderate | Physical |
+> | 4 | E-commerce / DTC retail | B2C | Light | Physical+Digital |
+> | 5 | Two-sided marketplace | B2B+B2C | Moderate | Digital |
+> | 6 | Fintech / payments | B2C+B2B | Heavy | Digital |
+> | 7 | Healthcare / digital health | B2B+B2C | Heavy | Physical+Digital |
+> | 8 | Restaurant / food service | B2C | Moderate | Physical |
+>
+> A playbook is "general" only when it produces a sensible, evidence-backed result for **every**
+> row above. Overfitting to any single row is an instant FAIL (DEPTH-RUBRIC §5/§6).
+
+## B13 Product & design capability for client builds
+> AutoFirm itself is headless, but it must build **institution-grade, non-vibe-coded** products/UIs
+> for client companies (CLAUDE.md §2 CDO/Head of Design, §3.14, §4.9).
+- **L1.B13.1** Design-research / competitive-teardown method (how to study category-leading,
+  unicorn-or-bigger products and distil patterns — inspiration, never plagiarism).
+- **L1.B13.2** Design-systems & design-token theory (color/type/spacing/motion scales, component
+  inventories) and the anti-AI-slop bar (real hierarchy, restraint, custom decisions).
+- **L1.B13.3** UX heuristics & interaction design (Nielsen heuristics, state coverage:
+  loading/empty/error/edge; nothing-static — every control wired to real behaviour).
+- **L1.B13.4** Accessibility foundations — **WCAG 2.2 AA** (automated + manual keyboard/focus/
+  screen-reader) and Core Web Vitals performance budgets (LCP/CLS/INP via Lighthouse).
+- **L1.B13.5** Live, browser-driven E2E testing theory (Playwright-style) — exercising every
+  button/input/link/flow in the running app (happy path + failure/edge), generator/evaluator split.
+
+## B14 Software delivery & engineering quality for client products
+> How AutoFirm **engineers the actual software it ships for clients** — distinct from A9 (platform
+> eval) and B11 (ops). Applies CLAUDE.md §3.6/§5.5 (tests-with-teeth) and §5.7 (code-org) to
+> *client* code.
+- **L1.B14.1** CI/CD pipeline design for delivered software (build/test/scan gates, deploy/rollback,
+  preview environments).
+- **L1.B14.2** Testing strategy for client products (test pyramid, property/fuzz/mutation testing,
+  coverage + mutation-score gates) applied to shipped code.
+- **L1.B14.3** Code-organisation & maintainability (self-documenting naming, file-size limits,
+  module boundaries — CLAUDE.md §5.7) and secure-SDLC for delivered software (SAST/DAST/dep-scan).
 
 ---
 
@@ -175,11 +227,21 @@ start until its Layer-2 dependencies are PASSED. The CRO enforces this gate.
 - **L2.B2** A function-decomposition engine that maps any company → automatable functions
   ← L1.B2.*, L1.B1.2.
 - **L2.B3** An opportunity-validation playbook ← L1.B3.*, L1.B4.2.
-- **L2.B4** A real-data modeling toolkit (financial/customer/ops) ← L1.B4.*, L1.A8.1.
-- **L2.B5..B11** Per-function automated playbooks (pricing, fundraising, marketing, sales,
-  **customer support**, legal/compliance, operations) ← respective L1.B*.1 + L1.B12.*.
-- **L2.B12** The generalization layer: parameterize every playbook by industry/size
-  ← L1.B12.*, all L2.B*.
+- **L2.B4** A real-data modeling toolkit (financial/customer/ops) ← L1.B4.1-3, **L1.B4.4**, L1.A8.1.
+- **L2.B5** Automated **pricing & monetization** playbook ← L1.B5.1, L1.B4.2 (LTV/CAC), L1.B12.*.
+- **L2.B6** Automated **fundraising & capital** playbook ← L1.B6.1, L1.B4.1, L1.B12.*.
+- **L2.B7** Automated **marketing** playbook ← L1.B7.1, L1.B4.2, L1.B12.*.
+- **L2.B8** Automated **sales** playbook ← L1.B8.1, **L1.B7.1** (marketing→sales handoff), L1.B12.*.
+- **L2.B9** Automated **customer support & success** playbook ← L1.B9.1, L1.B8.1, L1.B12.*.
+- **L2.B10** Automated **legal/compliance/risk** playbook ← L1.B10.1, L1.A7.* (fail-closed), L1.B12.*.
+- **L2.B11** Automated **operations & supply/delivery** playbook ← L1.B11.1, L1.B4.3, L1.B12.*.
+- **L2.B12** The generalization layer: parameterize every playbook by industry/size, proven against
+  the **fixed industry panel** golden set ← L1.B12.*, all L2.B*.
+- **L2.B13** The AutoFirm **design-build + live-E2E playbook** (back-end-first, real-data/all-states,
+  design-token adherence, WCAG 2.2 AA, Core Web Vitals, green live Playwright DoD)
+  ← L1.B13.*, L1.A9.* (eval rigor).
+- **L2.B14** The AutoFirm **client software-delivery engine** (CI/CD + tests-with-teeth + code-org +
+  secure-SDLC applied to shipped client code) ← L1.B14.*, L1.A9.3, L1.A7.*.
 
 ---
 
@@ -188,7 +250,8 @@ start until its Layer-2 dependencies are PASSED. The CRO enforces this gate.
 - **L3.PLATFORM** The integrated AutoFirm platform architecture (orchestration + memory +
   governance + safety + data + eval as one fail-closed system) ← all L2.A* + L2.ORG.
 - **L3.BUSINESS** The integrated company-building operating doctrine (validate→build→fund→
-  market→sell→operate→support, generalized by industry) ← all L2.B*.
+  market→sell→operate→support, **plus design-build (L2.B13) and software-delivery (L2.B14)** of the
+  client products themselves, generalized by industry) ← all L2.B* (incl. L2.B13, L2.B14).
 - **L3.WHOLE** How platform + doctrine compose: the dynamic agent-company that runs ANY company,
   end-to-end, with evidence it generalizes ← L3.PLATFORM + L3.BUSINESS.
 
@@ -207,11 +270,19 @@ L1.A7,A8 ─┼─► L2.A7 ─┤                ├─► L3.WHOLE
 L1.A8    ─┼─► L2.A8 ─┤                │
 L1.A9    ─┼─► L2.A9 ─┘                │
 L1.B1,A1,A6,A7 ─► L2.ORG ────────────┘
-L1.B2,B1 ─► L2.B2 ─┐
-L1.B3,B4 ─► L2.B3 ─┤
-L1.B4    ─► L2.B4 ─┼─► L3.BUSINESS ───► L3.WHOLE
-L1.B5..B11 ─► L2.B5..B11 ─┤
-L1.B12   ─► L2.B12 ───────┘
+L1.B2,B1     ─► L2.B2  ─┐
+L1.B3,B4     ─► L2.B3  ─┤
+L1.B4.1-4    ─► L2.B4  ─┤   (L1.B4.4 public-data sourcing/PII boundary gates L2.B4)
+L1.B5.1,B4.2 ─► L2.B5  ─┤
+L1.B6.1,B4.1 ─► L2.B6  ─┤
+L1.B7.1,B4.2 ─► L2.B7  ─┤
+L1.B8.1,B7.1 ─► L2.B8  ─┤   (marketing→sales handoff edge)
+L1.B9.1,B8.1 ─► L2.B9  ─┼─► L3.BUSINESS ───► L3.WHOLE
+L1.B10.1,A7  ─► L2.B10 ─┤
+L1.B11.1,B4.3─► L2.B11 ─┤
+L1.B13.*,A9  ─► L2.B13 ─┤   (client product/design + live-E2E)
+L1.B14.*,A9.3,A7 ─► L2.B14 ─┤   (client software delivery/quality)
+L1.B12.*     ─► L2.B12 ─┘   (proven on the FIXED industry panel golden set)
 ```
 
 **Cross-half edges (do not miss):** L1.B1.1 (org theory) feeds L2.A1 and L2.ORG — the platform's
