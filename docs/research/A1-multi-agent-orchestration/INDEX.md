@@ -1,7 +1,7 @@
 # INDEX — A1 Multi-Agent Orchestration & Coordination (Layer 1)
 
-Branch owner: Research Analyst (A1). Status: SEEDED + DRAFTED (awaiting senior review + independent QA
-per RESEARCH-PROGRAM.md section 2/3; not yet CRO-marked "answered").
+Branch owner: Research Analyst (A1). Status: SEEDED + DRAFTED + AMBER-GAPS-CLOSED (awaiting
+re-review per RESEARCH-PROGRAM.md section 2/3; not yet CRO-marked "answered").
 
 ## Questions covered
 - L1.A1.1 Taxonomy of MAS coordination (patterns, strengths, failure modes)
@@ -21,11 +21,21 @@ per RESEARCH-PROGRAM.md section 2/3; not yet CRO-marked "answered").
 | 07 | galbraith-information-processing-view | Galbraith 1974, Organization Design: An Information Processing View (Interfaces 4(3):28-36) | High | A1.4 |
 | 08 | smith-contract-net-protocol | Smith 1980, The Contract Net Protocol (IEEE Trans. Computers C-29(12):1104-1113) | High | A1.1 |
 | 09 | tian-orchestration-vs-single-llm | Tian et al. 2025, Beyond the Strongest LLM (arXiv:2509.23537) | Moderate | A1.2 |
+| 10 | hayes-roth-blackboard-architecture | Hayes-Roth 1985, A Blackboard Architecture for Control (Artificial Intelligence 26(3):251-321) | High | A1.1 (blackboard pattern, primary) |
+| 11 | bonabeau-swarm-intelligence | Bonabeau, Dorigo & Theraulaz 1999, Swarm Intelligence: From Natural to Artificial Systems (Oxford/SFI) | High | A1.1 (swarm/stigmergic pattern, primary) |
+| 12 | kim-liu-scaling-agent-systems | Kim et al. 2026 (20 authors incl. Y. Kim, X. Liu corresp.; Google Research / Google DeepMind / MIT), Towards a Science of Scaling Agent Systems (arXiv:2512.08296) | Moderate-High | A1.2 (multi-vs-single + cost corroboration) |
 
 ## Source-count check (DEPTH-RUBRIC section 1)
-- Critical claim "multi-agent can beat a single strong agent": 02, 03, 05, 09 (+ clinical study) = 4+ independent. PASS.
+- Critical claim "multi-agent can beat a single strong agent": 02, 03, 05, 09, 12 (+ clinical study) = 5+ independent. PASS.
 - Critical claim "failure is mostly inter-agent design, not model quality": 04 (peer-reviewed), 01, 02 = 3 independent. PASS.
-- Critical claim "coordination cost scales with information-processing demand": 06, 07, 02 = 3 independent. PASS.
-- Architecture choice "hierarchical/role-based backbone": 02, 03, 01 = 3. PASS.
+- Critical claim "coordination cost scales with information-processing demand": 06, 07, 02, 12 = 4 independent. PASS.
+- Important claim "multi-agent cost is token-dominated w/ diminishing returns": 02, 12 = 2 independent (12 is a controlled 3-model-family study, no longer single-weak-source). PASS.
+- Architecture choice "hierarchical/role-based backbone": 02, 03, 01, 12 (coordinated > leaderless, 4.4x vs 17.2x per the Google Research blog) = 4. PASS.
+- Full-method-space coverage (DEPTH-RUBRIC section 4): all 6 ontology patterns surveyed w/ a primary source -- blackboard (10), swarm (11) close the prior two gaps. PASS.
+
+## AMBER gaps closed in this pass
+1. Blackboard pattern was DEFERRED without a primary source -> added 10 (Hayes-Roth 1985, peer-reviewed primary).
+2. Swarm/stigmergic pattern (named in L1.A1.1 enumeration) was absent -> added 11 (Bonabeau/Dorigo/Theraulaz 1999, canonical primary).
+3. Cost/diminishing-returns + multi-vs-single leaned on the Low-Moderate Anthropic blog (02) -> added 12 (Google Research, 3 model families) as independent corroboration.
 
 ## See SYNTHESIS.md for the surveyed space, adopt/reject decisions, and the AutoFirm recommendation.

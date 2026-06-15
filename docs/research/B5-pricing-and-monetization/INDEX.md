@@ -20,6 +20,15 @@ RESEARCH-PROGRAM sec 2; not yet CRO-PASSED).
 | 10 | calvano-algorithmic-collusion | algorithmic-collusion safety guardrail | High |
 | 11 | saas-monetization-models | digital monetization model menu | Low-Moderate |
 | 12 | simon-kucher-pricing-power | profit leverage; value-based > cost-plus | Low-Moderate |
+| 13 | forbis-mehta-monroe-evc-primary | EVC PRIMARY origin (Forbis & Mehta 1981) + Monroe; hardens 02 | Moderate-High |
+| 14 | hinterhuber-value-based-pricing-framework | peer-reviewed value-based pricing + 6-step method; hardens 01 | High |
+| 15 | miller-wtp-measurement-comparison | incentive-compatible WTP (BDM/ICBC) + hypothetical bias; extends 05-07 | High |
+
+**AMBER->GREEN strengthening (added 2026-06-15):** sources 13-15 close the QA gaps -- (13) gives the
+safety-critical EVC formula its **primary peer-reviewed origin** (Forbis & Mehta 1981) so it rests on
+>= 3 independent sources; (14) gives the value-based **orientation** a peer-reviewed (IMM) anchor
+instead of practitioner-only; (15) closes the under-surveyed **incentive-compatible WTP / hypothetical-
+bias** sub-question with a top-venue empirical comparison (JMR 2011).
 
 **Synthesis:** see `SYNTHESIS.md` (surveyed space A-H + recommended deterministic-core engine
 architecture + B12 generalization table + fail-closed invariants).

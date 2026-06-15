@@ -13,13 +13,20 @@ storylines**, and **no AI-slop look**?
 ## 2. Surveyed alternative space (with ADOPT/REJECT)
 
 ### 2.1 Excel / financial models (L1.B15.1)
-**Model-build STANDARDS surveyed:** FAST (03) · Operis · SSRB/Best-Practice (all in Grossman &
-Ozluk, 01) · ad-hoc/no-standard (rejected — Panko 02 shows ~90% of unmanaged spreadsheets contain
-errors).
+**Model-build STANDARDS surveyed:** FAST (03) · **ICAEW Twenty Principles + Financial Modelling
+Code (13)** · Operis · SSRB/Best-Practice (Grossman & Ozluk, 01) · ad-hoc/no-standard (rejected —
+Panko 02 + Powell/Lawson/Baker 14 show ~90% of unmanaged spreadsheets contain errors).
 - **ADOPT: FAST** as the default style contract (openly published, governed, machine-encodable),
-  taking the **convergent core all three standards share** — separate Inputs/Calculations/Outputs;
+  taking the **convergent core the standards share** — separate Inputs/Calculations/Outputs;
   one consistent formula per row; no embedded constants; consistent semantic colour-coding;
-  short readable formulas; driver-based flexibility.
+  short readable formulas; driver-based flexibility. **The convergence is now corroborated by ≥3
+  independent bodies:** ICAEW (13), an independent chartered-accountancy standards body, authors the
+  *same* structural rules (P10 separate inputs/workings/outputs · P12 consistent formulae · P13
+  short/simple · P14 no embedded constants · P15 calculate-once-then-reference) AND formally
+  recognizes FAST — closing the prior single-corroborator gap (FAST 03 + Grossman&Ozluk 01 + ICAEW
+  13).
+- **ADOPT additional ICAEW machine-checkable rules:** documentation sheet (P7), built-in
+  integrity-check rows (P19), version/provenance on save (P17).
 - **REJECT** committing to Operis's heavy named-range idiom as the only style (hurts
   machine-generation readability); **REJECT** ad-hoc generation outright.
 
@@ -31,7 +38,12 @@ errors).
 
 ### 2.2 PowerPoint / decks (L1.B15.2)
 **Storyline/craft standards surveyed:** Minto Pyramid (06) · Zelazny message-to-chart (08) · Tufte
-data-ink/chartjunk (07) · IBCS SUCCESS (09).
+data-ink/chartjunk (07) · IBCS SUCCESS (09) · **Kosslyn cognitive-science principles (15)**.
+- **ADOPT Kosslyn's 8 principles as the cognitive "why" under the practitioner rules** — each deck
+  rule now carries a craft authority *and* a perception/memory mechanism (Capacity Limitations ↔
+  one-message-per-slide/MECE; Salience+Discriminability ↔ IBCS/Tufte contrast; Informative Changes ↔
+  Tufte data-ink/no-decoration; Compatibility ↔ Zelazny message→chart; Perceptual Organization ↔
+  grouping). Lifts B15.2 above practitioner-book-only corroboration.
 - **ADOPT all four, integrated by IBCS SUCCESS** as the master rubric:
   - **Minto** -> answer-first storyline tree + **action/message titles** (full-sentence claims).
   - **Zelazny** -> deterministic **message-type -> chart-family** selector (component->pie,
@@ -112,8 +124,17 @@ are NEVER committed to the public repo or used as public-data validation fixture
 for any sensitive content in tests.
 
 ## 8. Source quality summary
-High (primary): FAST Standard (03), OOXML/ISO 29500 (12), Tufte (07), Zelazny (08), IBCS (09),
-Minto (06), Panko taxonomy (02). Moderate: Grossman & Ozluk (01), Hatmaker (04), library docs
-(05, 10, 11). No claim rests on a single Very-low source; every load-bearing rule is corroborated
-by >=2 independent sources (FAST + Grossman&Ozluk for model standards; Tufte + IBCS for chart
-austerity; Minto + IBCS-STRUCTURE for storyline).
+High (primary): FAST Standard (03), **ICAEW Twenty Principles + Financial Modelling Code (13)**,
+OOXML/ISO 29500 (12), Tufte (07), Zelazny (08), IBCS (09), Minto (06), Panko taxonomy (02),
+**Powell/Lawson/Baker empirical study (14)**, **Kosslyn cognitive-science principles (15)**.
+Moderate: Grossman & Ozluk (01), Hatmaker (04), library docs (05, 10, 11). No claim rests on a
+single Very-low source. **Every safety/correctness-critical and architecture-level claim now meets
+the DEPTH-RUBRIC §1 source minimum from INDEPENDENT bodies:**
+- **Spreadsheet-error prevalence / audit-mandate (correctness-critical, ≥3):** Panko (02) +
+  Powell/Lawson/Baker (14, Dartmouth SERP) + Grossman&Ozluk (01) — three independent research
+  groups.
+- **Convergent model-build standard (architecture, ≥3):** FAST (03) + Grossman&Ozluk (01) + ICAEW
+  (13) — independent standards bodies; ICAEW also officially recognizes FAST.
+- **Deck austerity / structure (≥2, now cross-discipline):** Tufte (07) + IBCS (09) + Kosslyn (15)
+  for chart austerity; Minto (06) + IBCS-STRUCTURE + Kosslyn Capacity-Limitations (15) for
+  one-message storyline; Zelazny (08) + Kosslyn Compatibility (15) for message→chart matching.

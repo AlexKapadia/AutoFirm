@@ -17,12 +17,13 @@
 ## Key claims (with locators)
 1. **Design (abstract, exact):** CaMeL "explicitly extracts the control and data flows from the (trusted) query; therefore, the untrusted data retrieved by the LLM can never impact the program flow." It "relies on a notion of a capability to prevent the exfiltration of private data over unauthorized data flows."
 2. **Architecture:** a Privileged LLM (P-LLM) plans and emits code from the trusted user query; a Quarantined LLM (Q-LLM) parses/extracts from untrusted data only (no tool access). A custom Python interpreter executes the P-LLM code and enforces capabilities + security policies on every tool call — a hard technical boundary, not instruction-following. Capabilities tag each value with provenance/permission metadata so the interpreter can block disallowed data flows (e.g., private data -> public sink).
-3. **Benchmark (exact):** CaMeL solves 67% of tasks with provable security in AgentDojo (NeurIPS 2024 benchmark).
+3. **Benchmark (exact, v2 abstract):** CaMeL solves 77% of tasks with provable security in AgentDojo — compared to 84% with an undefended system (NeurIPS 2024 benchmark). (Prior "67%" came from a stale project page; the arXiv v2 abstract is the venue-bound primary and states 77% vs 84% undefended.)
 4. **Limitations acknowledged:** requires writing explicit security policies per task domain (authoring burden); residual side-channel risks; coverage gaps against some multi-step/indirect attacks.
 
 ## Up/down-rate reasoning
 - Up-rated: peer-reviewed venue acceptance; provable-security framing; open-source reference implementation (reproducible).
-- Down-rated: finer interpreter mechanics only partially extractable from fetched excerpts — the 67% AgentDojo / capability / control-vs-data-flow claims are verified from the abstract + project page; interpreter internals should be re-read from the v2 PDF before quoting verbatim.
+- Down-rated: finer interpreter mechanics only partially extractable from fetched excerpts — the 77%-vs-84%-undefended AgentDojo / capability / control-vs-data-flow claims are verified from the v2 abstract; interpreter internals should be re-read from the v2 PDF before quoting verbatim.
 
 ## Reproducibility note
-The 67% figure and control/data-flow + capability framing are in the abstract (arXiv:2503.18813) and the project page; interpreter/capability mechanics are in the v2 PDF (cite section when quoting). Reference code public on GitHub.
+The 77%-with-provable-security vs 84%-undefended figures and the control/data-flow + capability framing are in the **v2 abstract** (arXiv:2503.18813v2, verified by WebFetch 2026-06-15); the project page is **stale** (quotes 67%) and must not be cited for this number. Interpreter/capability mechanics are in the v2 PDF (cite section when quoting). Reference code public on GitHub.
+- **Open item resolved:** the v2 abstract has been re-read (77% / 84%); the remaining re-verify step is the v2 PDF §3-4 interpreter internals before quoting those verbatim.

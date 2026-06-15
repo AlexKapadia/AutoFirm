@@ -5,7 +5,7 @@
 
 ## 1. The full alternative space surveyed (with ADOPT/REJECT/DEFER)
 
-**A. Pricing ORIENTATION (the strategy root)** -- source 01, 12
+**A. Pricing ORIENTATION (the strategy root)** -- sources 01, 12, 14 (peer-reviewed anchor)
 - **Cost-plus** = cost + margin. ADOPT as floor only; REJECT as target (least profitable; cost
   does not determine WTP -- 01, corroborated 12).
 - **Competition-based** = price relative to rivals. ADOPT as an anchor/sanity check; never the
@@ -13,20 +13,28 @@
 - **Value-based** = price to economic/perceived value. ADOPT as the default target (01, 02,
   evidence 12).
 
-**B. Value QUANTIFICATION** -- source 02
+**B. Value QUANTIFICATION** -- sources 02, 13 (primary origin), 14 (peer-reviewed)
 - EVC = Reference Value + Differentiation Value - Switching/Implementation Costs. ADOPT as the
-  canonical WTP-ceiling calculator (deterministic core).
+  canonical WTP-ceiling calculator (deterministic core). Primary-anchored to Forbis & Mehta (1981,
+  the EVC origin) + Monroe + Hinterhuber (2004) -- three independent sources for the formula.
+- **Hinterhuber six-step method (14):** objectives -> analyze elements -> economic-value analysis ->
+  manage/communicate value -> range of profitable prices -> implement. ADOPT as the peer-reviewed
+  ordering backbone of the pricing pipeline; output a price **band** [floor, EVC], not a false point.
 
 **C. SEGMENTATION / DISCRIMINATION** -- source 03 (High)
 - 1st-degree (personalized): ADOPT as unattainable ceiling/benchmark, and for B2B negotiated.
 - 2nd-degree (versioning/tiers/usage menus, two-part tariff): ADOPT -- backbone of tiered/hybrid SaaS.
 - 3rd-degree (segment-based): ADOPT with a hard fence + legal gate; REJECT impermissible bases.
 
-**D. WTP MEASUREMENT** -- sources 05, 06, 07
+**D. WTP MEASUREMENT** -- sources 05, 06, 07, 15
 - Van Westendorp PSM: ADOPT for range-finding (PMC/PME/IPP/OPP).
 - Gabor-Granger / conjoint (MNL): ADOPT for revenue-optimal point + elasticity within the range.
 - Price-elasticity + Lerner inverse-elasticity rule (P-MC)/P = 1/|e|: ADOPT as the
   elasticity-to-price optimizer; mean elasticity -2.62 (n=1,851) as a prior only (07).
+- **Incentive-compatible elicitation (BDM/ICBC) + hypothetical-bias control (15, High, JMR 2011):**
+  stated-preference methods (open-ended, plain conjoint) **overstate** WTP; only incentive-aligned
+  methods (BDM, ICBC) passed a REAL-purchase benchmark. ADOPT: tag stated-WTP inputs, bias-discount
+  or bound them by EVC, and prefer incentive-aligned/live tests where a real purchase can close the loop.
 
 **E. DYNAMIC / REVENUE MANAGEMENT** -- source 04 (High)
 - Forecast -> optimize -> price triad; Littlewood/protection levels for capacity-constrained firms.
@@ -49,7 +57,8 @@
 
 **Explicitly EXCLUDED (scope boundary):** auction/mechanism-design pricing internals
 (Mussa-Rosen/Maskin-Riley optimal nonlinear tariffs), network/choice-based RM, hierarchical-Bayes
-conjoint estimation, detailed billing/metering engines -> deferred to L2.B5-advanced or B11/B14.
+conjoint estimation, full ICBC estimation internals (the *method-selection rule* IS covered, 15) ->
+deferred to L2.B5-advanced or B11/B14.
 
 ## 2. Recommended architecture for AutoFirm's pricing engine (L2.B5 preview)
 
@@ -83,6 +92,8 @@ select orientation (01,12)  ->  value model: EVC ceiling (02)  ->  segmentation/
 5. Any learned/reactive pricing clears anti-collusion + legal + HITL or is refused (10).
 6. All deterministic arithmetic (EVC, Lerner, PSM points, profit leverage) is exact, zero-error,
    mutation-tested ~100% (CLAUDE sec 3.6/3.11).
+7. Stated-preference WTP (open-ended/plain conjoint) is never used as a raw price target -- it is
+   bias-discounted or bounded by EVC; incentive-aligned methods (BDM/ICBC/live test) preferred (15).
 
 ## 3. Generality across the B12 industry panel (no overfitting, CLAUDE sec 3.9/4.5)
 
@@ -102,13 +113,22 @@ suitability, legal constraints) per row -- proven against ALL rows, not fitted t
 
 ## 4. Source-count / rigor check (DEPTH-RUBRIC sec 1)
 - Safety-critical claims (segmentation/fence correctness 03; algorithmic-collusion risk 10; EVC &
-  Lerner formulae 02/07): each backed by >= 3 independent sources incl. peer-reviewed primary.
+  Lerner formulae): EVC now backed by **3 independent sources** -- Forbis & Mehta (1981 primary
+  origin, 13), Monroe (13), and Hinterhuber (2004 peer-reviewed, 14) -- alongside the worked example
+  (02); Lerner via 06/07. Segmentation 03 + collusion 10 each High-tier peer-reviewed.
+- Orientation (value-based default) now has a **peer-reviewed anchor** (Hinterhuber 2004, IMM, 14),
+  not just practitioner sources (01, 12).
 - Important claims (WTP methods 05/06; elasticity magnitude 07; monetization taxonomy 11): >= 2
-  independent, with peer-reviewed anchors.
-- Contradicting evidence retained, not hidden (08 PLOS ONE null; 12 magnitude caveat).
-- Full alternative space surveyed (A-H) with explicit ADOPT/REJECT/DEFER and exclusions stated.
+  independent, with peer-reviewed anchors. WTP-trustworthiness now anchored by Miller et al. (2011
+  JMR, 15) + BDM (1964).
+- Contradicting evidence retained, not hidden (08 PLOS ONE null; 12 magnitude caveat; 15 shows
+  stated-WTP overstatement / hypothetical bias).
+- Full alternative space surveyed (A-H, incl. incentive-compatible WTP elicitation via 15) with
+  explicit ADOPT/REJECT/DEFER and exclusions stated.
 
 ## 5. Reproducibility
 Every formula (EVC, Lerner (P-MC)/P=1/|e|, MNL choice prob, PSM intersections, profit leverage) is
-reproducible from the cited primaries (sources 02,03,04,05,06,07,09,12). QA can re-fetch the AER
-abstract (10), the JMR -2.62 figure (07), and the ESOMAR PSM definition (05) to verify.
+reproducible from the cited primaries (sources 02,03,04,05,06,07,09,12,13,14). QA can re-fetch the
+AER abstract (10), the JMR -2.62 figure (07), the ESOMAR PSM definition (05), the *Business Horizons*
+24(3):32-42 EVC origin (13, Forbis & Mehta 1981), the IMM 33(8):765-778 six-step method (14,
+Hinterhuber 2004), and the JMR 48(1):172-184 WTP-method comparison (15, Miller et al. 2011) to verify.

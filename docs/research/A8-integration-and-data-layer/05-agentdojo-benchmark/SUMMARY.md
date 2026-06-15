@@ -17,7 +17,7 @@
 1. **Definition:** an evaluation framework for "agents that execute tools over untrusted data"; "not a static test suite, but an extensible environment for designing and evaluating new agent tasks, defenses, and adaptive attacks."
 2. **Scale (exact):** populated with **97 realistic tasks** (email client, e-banking navigation, travel bookings) and **629 security test cases**, plus attack/defense paradigms from the literature.
 3. **Threat model:** "AI agents are vulnerable to prompt injection attacks where data returned by external tools hijacks the agent to execute malicious tasks." AgentDojo measures adversarial robustness against these.
-4. It is the benchmark on which CaMeL (#04) reports 67% tasks-solved-with-provable-security.
+4. It is the benchmark on which CaMeL (#04) reports 77% tasks-solved-with-provable-security (vs 84% undefended; arXiv:2503.18813 v2 abstract).
 
 ## Up/down-rate reasoning
 - Up-rated: peer-reviewed venue; open, extensible, reproducible; the de-facto standard agentic-injection benchmark.

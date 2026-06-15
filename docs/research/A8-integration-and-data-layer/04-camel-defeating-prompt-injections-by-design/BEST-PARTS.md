@@ -3,7 +3,7 @@
 ## ADOPT
 - **Control-flow / data-flow separation as a design principle** — the trusted query defines the program; untrusted data can never alter the program flow. → AutoFirm's integration layer should derive the *plan/program* from the trusted orchestrator only; untrusted content is data the program operates on, never instructions.
 - **Capabilities = provenance + permission metadata on every value**, with a **non-LLM interpreter enforcing the policy** at each tool call. → drives a `capability` wrapper on integration-layer values: each carries (source, tenant, sensitivity, allowed-sinks); the gateway/runtime blocks disallowed flows (e.g., one tenant's data -> another's sink; private data -> public egress). This is the *enforcement engine* behind the A8.1 trust-tag and the A8.2 tenant boundary.
-- **Provable-security framing + a measurable target** — 67% of AgentDojo tasks solved *with provable security* gives AutoFirm a concrete bar to beat/track in `evidence/`.
+- **Provable-security framing + a measurable target** — 77% of AgentDojo tasks solved *with provable security* (vs 84% with an undefended system; arXiv v2 abstract) gives AutoFirm a concrete bar to beat/track in `evidence/`: close the 77%->84% utility gap while keeping provable security.
 - **Explicit security policies** as code (not prompts) → fail-closed, auditable, testable (ties to A6 audit, A7 fail-closed).
 
 ## REJECT / note limitations
