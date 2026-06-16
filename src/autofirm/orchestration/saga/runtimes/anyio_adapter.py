@@ -85,10 +85,6 @@ class AnyioAdapter:
         """AnyIO cancellation checkpoint — a fired cancel scope raises here."""
         await anyio.lowlevel.checkpoint()
 
-    async def sleep(self, seconds: float) -> None:
-        """Cancellable sleep modelling in-step work."""
-        await anyio.sleep(seconds)
-
     @asynccontextmanager
     async def shielded(self) -> AsyncIterator[None]:
         """Shield the body from ambient cancellation via a shielded cancel scope.

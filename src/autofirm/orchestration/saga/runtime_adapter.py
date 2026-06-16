@@ -69,9 +69,11 @@ class Scope(Protocol):
 class RuntimeAdapter(Protocol):
     """Minimal async-runtime seam the saga executor depends on (the bake-off API).
 
-    Implementations: ``runtimes/asyncio_adapter.py``, ``anyio_adapter.py``,
-    ``trio_adapter.py``. Each must uphold the documented cancellation/join
-    semantics so the saga invariants hold identically regardless of runtime.
+    Winning implementation: ``runtimes/anyio_adapter.py`` (ADR-001 §7 bake-off;
+    the asyncio + Trio adapters were measured then deleted, no-graveyard §3.8 —
+    numbers in ``concurrency-runtime-results.md``). The seam is kept so a future
+    bake-off can re-add a candidate; the implementation must uphold the documented
+    cancellation/join semantics so the saga invariants hold regardless of runtime.
     """
 
     name: str
@@ -96,10 +98,6 @@ class RuntimeAdapter(Protocol):
         cancel scope; asyncio polls ``scope``'s cancel flag because the stdlib has
         no scope-level cancel object.
         """
-        ...
-
-    async def sleep(self, seconds: float) -> None:
-        """Cancellable sleep (used to model in-step work that a cancel can interrupt)."""
         ...
 
     def shielded(self) -> AbstractAsyncContextManager[None]:

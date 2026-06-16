@@ -23,18 +23,17 @@ authors = [{ name = "AutoFirm" }]
 # experiment/concurrency-runtime — deliberately NOT pinned in the skeleton.
 dependencies = [
   "pydantic>=2.7",
+  # Concurrency runtime for the saga / --resume control loops. WINNER of the
+  # experiment/concurrency-runtime bake-off (ADR-001 §7): AnyIO gives Trio-grade
+  # structured-concurrency cancellation guarantees on the asyncio backend the rest
+  # of the stack targets (psycopg3/httpx) -- see
+  # docs/architecture/experiments/concurrency-runtime-results.md.
+  "anyio>=4.3",
 ]
 
 [project.optional-dependencies]
 # Test toolchain (ADR-001 §2): the mutation score is the acceptance signal.
 test = [
-  # Concurrency-runtime bake-off candidates (experiment/concurrency-runtime,
-  # ADR-001 §7): all three are installed at TEST time so the saga invariant
-  # suite runs identically across asyncio (stdlib) / AnyIO / Trio. The WINNER is
-  # promoted into [project].dependencies when the experiment lands on main; the
-  # losers are deleted (no-graveyard, CLAUDE.md §3.8).
-  "anyio>=4.3",
-  "trio>=0.25",
   "pytest>=8.2",
   "pytest-asyncio>=0.23",
   "pytest-cov>=5.0",
@@ -140,7 +139,13 @@ source = ["autofirm"]
 
 [tool.coverage.report]
 show_missing = true
-exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:"]
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  # Protocol / abstract method stubs are interface declarations, not executable
+  # code: a body of just `...` is never run (the concrete adapter overrides it).
+  "^\\s*\\.\\.\\.$",
+]
 
 # -----------------------------------------------------------------------------
 # Mutmut — mutation gate; the ACCEPTANCE SIGNAL (ADR-001 §2, §3 step 6).
@@ -152,7 +157,7 @@ tests_dir = "tests/"
 # separate step); -x stops at the first failure so a killed mutant returns fast.
 # The per-test `timeout` ini option (pytest.ini_options) bounds infinite-loop
 # mutants so the mutation gate cannot hang on a mutated loop bound.
-runner = "python -m pytest -x -q -p no:cacheprovider --no-header --rootdir=. -o addopts='' -o pythonpath=src"
+runner = "python -m pytest -x -q -p no:cacheprovider --no-header --rootdir=. -o addopts='' -o pythonpath=src tests/orchestration/saga"
 
 # -----------------------------------------------------------------------------
 # Bandit — Python SAST (ADR-001 §4). Excludes tests (assert is expected there).

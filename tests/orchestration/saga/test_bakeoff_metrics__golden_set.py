@@ -14,12 +14,12 @@ import pytest
 
 from autofirm.orchestration.saga.runtime_adapter import RuntimeAdapter
 from autofirm.orchestration.saga.runtimes.anyio_adapter import AnyioAdapter
-from autofirm.orchestration.saga.runtimes.asyncio_adapter import AsyncioAdapter
-from autofirm.orchestration.saga.runtimes.trio_adapter import TrioAdapter
 
 from .saga_bakeoff_metrics import measure_runtime
 
-ADAPTERS: list[RuntimeAdapter] = [AsyncioAdapter(), AnyioAdapter(), TrioAdapter()]
+# The winning runtime; the 3-way bake-off numbers are preserved in
+# concurrency-runtime-results.md and git history (loser adapters deleted, §3.8).
+ADAPTERS: list[RuntimeAdapter] = [AnyioAdapter()]
 ADAPTER_IDS = [a.name for a in ADAPTERS]
 
 

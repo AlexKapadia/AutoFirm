@@ -58,23 +58,26 @@ class CompensatorFailed(Exception):
     """A compensator raised during rollback — the saga is left FAILED (fail-closed)."""
 
 
-async def _compensate(
-    saga: Saga,
-    checkpoint: Checkpoint,
-    applied_indices: list[int],
-) -> Checkpoint:
-    """Run compensators for the applied steps in reverse, exactly once each.
+async def _compensate(saga: Saga, checkpoint: Checkpoint) -> Checkpoint:
+    """Run compensators for every applied-but-not-yet-compensated step, reverse order.
 
-    ``applied_indices`` is the ordered list of step indices whose forward action
-    actually ran in THIS attempt. We undo in reverse order. Each compensator whose
-    key is not already in the log's compensated set runs once, then is recorded. A
-    compensator failure raises :class:`CompensatorFailed` (the saga becomes FAILED).
+    The set of steps to undo is derived from the **replay log** (all applied keys
+    minus already-compensated keys), not just this attempt's — so a resume that
+    crashed *during* a previous rollback compensates only the steps still
+    outstanding, never re-running a compensator that already succeeded. That
+    ``already_undone`` short-circuit is the exactly-once guarantee across a
+    crash-during-rollback resume. A compensator failure raises
+    :class:`CompensatorFailed` (the saga becomes FAILED — fail-closed).
     """
     cp = checkpoint
     already_undone = cp.compensated_keys()
-    for idx in reversed(applied_indices):
+    # Steps to compensate, in reverse application order, derived from the log.
+    for idx in reversed(range(len(saga.steps))):
         step = saga.steps[idx]
         key = saga.idempotency_key(step.name)
+        if not cp.already_applied(key):
+            # never applied -> nothing to undo for this step.
+            continue
         if key in already_undone:
             # exactly-once: this compensator already ran on a prior attempt -> skip.
             continue
@@ -92,17 +95,16 @@ async def _forward_pass(
     saga: Saga,
     adapter: RuntimeAdapter,
     scope: Scope,
-    checkpoint: Checkpoint,
-    applied_this_attempt: list[int],
-) -> Checkpoint:
+    progress: list[Checkpoint],
+) -> None:
     """Apply each not-yet-applied forward step in order inside ``scope``.
 
-    Appends the index of every step applied in THIS attempt to
-    ``applied_this_attempt`` (so the caller can compensate exactly those on a
-    fault). Raises ``SagaAbort`` or ``adapter.cancelled_exc`` out to the caller
-    (handled in :func:`_drive` while still inside the scope) on a fault.
+    Threads progress through the single-element mutable ``progress`` holder
+    (``progress[0]`` is always the latest checkpoint) so that even when this
+    coroutine RAISES (``SagaAbort`` / ``adapter.cancelled_exc``) the caller still
+    sees every step recorded so far — the authoritative record of what to
+    compensate. The log is append-only; the holder just carries the latest value.
     """
-    cp = checkpoint
 
     async def _step_checkpoint() -> None:
         # Loop-invariant (scope/adapter fixed for this saga run): a forward action
@@ -110,6 +112,7 @@ async def _forward_pass(
         await adapter.checkpoint(scope)
 
     for idx, step in enumerate(saga.steps):
+        cp = progress[0]
         key = saga.idempotency_key(step.name)
         # idempotent replay: skip a forward action already applied on a prior run.
         if cp.already_applied(key):
@@ -133,13 +136,11 @@ async def _forward_pass(
         # later cancel cancels+joins it (no orphan). The no-op marker child
         # exercises the structured-ownership path on every runtime.
         await adapter.spawn(scope, _noop_child)
-        cp = record_forward(cp, key, step.name, idx + 1)
-        applied_this_attempt.append(idx)
+        progress[0] = record_forward(cp, key, step.name, idx + 1)
     # Final cancellation checkpoint: a cancel requested DURING the last step (a
     # boundary cancel with no following iteration to deliver it) is honoured here,
     # so a late cancel still triggers rollback rather than a false COMMITTED.
     await adapter.checkpoint(scope)
-    return cp
 
 
 async def _drive(
@@ -153,36 +154,32 @@ async def _drive(
     asyncio.TaskGroup exception-group wrapping never fires and children are always
     cancelled+joined. Returns the terminal checkpoint.
     """
-    cp = _with_state(checkpoint, SagaState.RUNNING)
-    applied: list[int] = []
+    # Single-element holder so a raising forward pass still hands back the steps
+    # it applied (immutable checkpoints; the holder carries the latest value).
+    progress = [_with_state(checkpoint, SagaState.RUNNING)]
     async with adapter.open_scope() as scope:
         try:
-            cp = await _forward_pass(saga, adapter, scope, cp, applied)
-        except SagaAbort:
-            # voluntary business rollback: compensate (shielded) then COMPENSATED.
+            await _forward_pass(saga, adapter, scope, progress)
+        except (SagaAbort, adapter.cancelled_exc):
+            # Abort (voluntary) or external cancel: compensate under a shield so the
+            # rollback runs to completion despite a fired cancel scope (exactly-once
+            # compensation must never be interrupted — fail-closed), then end
+            # COMPENSATED. The fault is consumed here so the structured scope exits
+            # cleanly; children were already cancelled+joined on entry to the handler.
             async with adapter.shielded():
-                return await _rollback(saga, cp, applied, terminal=SagaState.COMPENSATED)
-        except adapter.cancelled_exc:
-            # external cancel: compensate under a shield so the rollback runs to
-            # completion despite the fired cancel scope (exactly-once compensation
-            # must never be interrupted), then end COMPENSATED. The cancel is
-            # consumed here so the structured scope exits cleanly; children were
-            # already cancelled+joined on entering this handler within the scope.
-            async with adapter.shielded():
-                return await _rollback(saga, cp, applied, terminal=SagaState.COMPENSATED)
-    return _with_state(cp, SagaState.COMMITTED)
+                return await _rollback(saga, progress[0], terminal=SagaState.COMPENSATED)
+    return _with_state(progress[0], SagaState.COMMITTED)
 
 
 async def _rollback(
     saga: Saga,
     cp: Checkpoint,
-    applied: list[int],
     *,
     terminal: SagaState,
 ) -> Checkpoint:
     """Compensate the applied steps and return the terminal checkpoint (fail-closed)."""
     try:
-        cp = await _compensate(saga, cp, applied)
+        cp = await _compensate(saga, cp)
     except CompensatorFailed:
         # fail-closed: a failed undo => FAILED, never a clean COMPENSATED.
         return _with_state(cp, SagaState.FAILED)

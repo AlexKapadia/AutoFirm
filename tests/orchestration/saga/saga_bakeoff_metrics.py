@@ -98,10 +98,9 @@ def measure_idempotent_replay(adapter: RuntimeAdapter) -> int:
 def measure_orphans(adapter: RuntimeAdapter) -> int:
     """Count event-loop tasks left alive after a cancelled run (structured leak).
 
-    Runs a cancel-injecting saga, then — on the SAME asyncio loop (the asyncio and
-    AnyIO-on-asyncio backends share it; Trio is checked via its own instrumentation
-    below) — counts tasks beyond the single entry task. A structured runtime
-    guarantees the count is 0 because every child is joined on scope exit.
+    Runs a cancel-injecting saga on the asyncio loop (the AnyIO winner uses the
+    asyncio backend) and counts tasks beyond the single entry task. A structured
+    runtime guarantees 0 because every child is joined on scope exit.
     """
     names = _names(_GOLDEN_STEPS)
     leaked = 0
@@ -116,12 +115,6 @@ def measure_orphans(adapter: RuntimeAdapter) -> int:
         alive = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         leaked = len([t for t in alive if not t.done()])
 
-    # Trio cannot be inspected with asyncio.all_tasks(); its no-orphan property is
-    # structurally guaranteed by the nursery (you cannot exit a nursery with a live
-    # child) and is asserted behaviourally by the invariant suite. For the asyncio
-    # and AnyIO(asyncio-backend) adapters we measure directly here.
-    if adapter.name == "trio":
-        return 0
     asyncio.run(_probe())
     return leaked
 

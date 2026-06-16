@@ -1,10 +1,14 @@
-"""Saga invariant tests run identically across asyncio, AnyIO, and Trio.
+"""Saga invariant tests for the winning runtime (AnyIO — ADR-001 §7).
 
-Proves the saga executor upholds — on every runtime — the four invariants the
-ADR-001 §7 fork is measured on: exactly-once compensation, idempotent replay on
-resume, no orphaned tasks, and determinism. Boundary-exact unit asserts plus a
-Hypothesis property test over random step counts x random fault points. Synthetic
-only; no network (CLAUDE.md §3.6/§5.5).
+Proves the saga executor upholds the four invariants the fork was measured on:
+exactly-once compensation, idempotent replay on resume, no orphaned tasks, and
+determinism. Boundary-exact unit asserts plus a Hypothesis property test over
+random step counts x random fault points. Synthetic only; no network
+(CLAUDE.md §3.6/§5.5).
+
+The bake-off ran these identically across asyncio / AnyIO / Trio; AnyIO won
+(see ``concurrency-runtime-results.md``) and the loser adapters were deleted
+(no-graveyard, §3.8), so the live suite now exercises the winner.
 """
 
 from __future__ import annotations
@@ -15,8 +19,6 @@ from hypothesis import strategies as st
 
 from autofirm.orchestration.saga.runtime_adapter import RuntimeAdapter
 from autofirm.orchestration.saga.runtimes.anyio_adapter import AnyioAdapter
-from autofirm.orchestration.saga.runtimes.asyncio_adapter import AsyncioAdapter
-from autofirm.orchestration.saga.runtimes.trio_adapter import TrioAdapter
 from autofirm.orchestration.saga.saga_executor import run_saga
 from autofirm.orchestration.saga.saga_model import (
     Checkpoint,
@@ -27,8 +29,9 @@ from autofirm.orchestration.saga.saga_model import (
 
 from .synthetic_saga import FaultPlan, Ledger, build_saga
 
-# Every test below runs once per runtime — the apples-to-apples bake-off matrix.
-ADAPTERS: list[RuntimeAdapter] = [AsyncioAdapter(), AnyioAdapter(), TrioAdapter()]
+# The winning runtime (AnyIO). Kept as a single-element matrix so the suite reads
+# as a runtime sweep and a second runtime could be re-added for a future bake-off.
+ADAPTERS: list[RuntimeAdapter] = [AnyioAdapter()]
 ADAPTER_IDS = [a.name for a in ADAPTERS]
 
 
@@ -193,12 +196,11 @@ def test_determinism_over_many_repetitions(adapter: RuntimeAdapter) -> None:
     n_steps=st.integers(min_value=1, max_value=8),
     fault=st.sampled_from(["none", "abort", "cancel", "cancel_mid"]),
     fault_offset=st.integers(min_value=0, max_value=7),
-    adapter_idx=st.integers(min_value=0, max_value=2),
 )
 def test_property_saga_invariants_hold_under_random_faults(
-    n_steps: int, fault: str, fault_offset: int, adapter_idx: int
+    n_steps: int, fault: str, fault_offset: int
 ) -> None:
-    adapter = ADAPTERS[adapter_idx]
+    adapter = ADAPTERS[0]
     names = _names(n_steps)
     at = fault_offset % n_steps  # keep the fault point in range
     plan = FaultPlan()
