@@ -73,8 +73,12 @@ class SagaState(StrEnum):
 # A forward action takes the immutable saga context and returns nothing; it
 # performs its side effect via the supplied effect-recorder (see executor). A
 # compensator semantically undoes a *previously applied* forward action.
-ForwardAction = Callable[["StepContext"], Awaitable[None]]
-Compensator = Callable[["StepContext"], Awaitable[None]]
+ForwardAction = Callable[["StepContext"], Awaitable[None]]  # pragma: no mutate
+Compensator = Callable[["StepContext"], Awaitable[None]]  # pragma: no mutate
+# ^ pragma: these are pure typing aliases. Under `from __future__ import
+# annotations` every annotation is a string and is NEVER evaluated at runtime, so
+# mutating the alias value (-> None) or the forward-ref text is provably runtime-
+# equivalent (no behaviour change a test could observe). Justified inline (§3.6).
 
 
 def _no_cancel() -> None:

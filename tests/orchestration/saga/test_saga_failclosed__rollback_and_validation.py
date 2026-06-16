@@ -9,6 +9,8 @@ compensated-once short-circuit on repeated rollback must hold. Synthetic only.
 
 from __future__ import annotations
 
+import anyio
+import anyio.lowlevel
 import pytest
 
 from autofirm.orchestration.saga.runtimes.anyio_adapter import AnyioAdapter
@@ -27,6 +29,43 @@ from autofirm.orchestration.saga.saga_model import (
 ADAPTER = AnyioAdapter()
 
 
+# --------------------------------------------------------------------------- #
+# Adapter type guard is fail-closed (explicit raise, NOT assert — survives -O). #
+# --------------------------------------------------------------------------- #
+
+
+class _ForeignScope:
+    """A scope object NOT created by AnyioAdapter (e.g. a wiring bug / another runtime)."""
+
+    def cancel(self) -> None:  # pragma: no cover - never reached; guard rejects first
+        return None
+
+
+@pytest.mark.unit
+def test_adapter_name_is_anyio() -> None:
+    # The adapter name is observable (test IDs, the results doc, the dependency
+    # rationale). Pin the exact string (kills name -> None and the wrapped-literal).
+    assert AnyioAdapter().name == "anyio"
+
+
+@pytest.mark.security
+def test_spawn_refuses_a_foreign_scope_with_typeerror() -> None:
+    # A foreign scope could leak a child OUTSIDE the structured nursery (orphan), so
+    # spawn must refuse it. The guard is a real `raise`, not an assert, so it holds
+    # under `python -O` (bandit B101). Assert the EXACT message (not match=, which is
+    # a regex search a whole-string-wrap mutant would survive).
+    async def _main() -> None:
+        with pytest.raises(TypeError) as exc:
+            await ADAPTER.spawn(_ForeignScope(), _noop)  # type: ignore[arg-type]
+        assert str(exc.value) == "AnyioAdapter requires an _AnyioScope, got _ForeignScope"
+
+    anyio.run(_main)
+
+
+async def _noop() -> None:  # pragma: no cover - never started; guard rejects first
+    return None
+
+
 async def _ok_forward(ctx: StepContext) -> None:
     return None
 
@@ -41,6 +80,89 @@ async def _aborting_forward(ctx: StepContext) -> None:
 
 async def _raising_comp(ctx: StepContext) -> None:
     raise RuntimeError("compensator blew up")
+
+
+# --------------------------------------------------------------------------- #
+# StepContext.already_applied is part of the contract handed to user code:      #
+# a forward action is told already_applied=False (it is ABOUT to apply); a       #
+# compensator is told already_applied=True (the step WAS applied). User code can #
+# branch on it, so the executor must pass the correct value every time.          #
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.unit
+def test_forward_sees_already_applied_false_and_compensator_sees_true() -> None:
+    # Records the already_applied flag the executor hands to each callback. A
+    # forward action runs before its effect (False); a compensator runs to undo a
+    # step that DID apply (True). This pins both StepContext.already_applied sites.
+    fwd_flags: list[bool] = []
+    comp_flags: list[bool] = []
+
+    async def fwd(ctx: StepContext) -> None:
+        fwd_flags.append(ctx.already_applied)
+
+    async def comp(ctx: StepContext) -> None:
+        comp_flags.append(ctx.already_applied)
+
+    async def aborting(ctx: StepContext) -> None:
+        fwd_flags.append(ctx.already_applied)
+        raise SagaAbort(ctx.step_name)
+
+    saga = Saga(
+        name="ctxflag",
+        steps=(
+            Step(name="a", forward=fwd, compensator=comp),
+            Step(name="b", forward=aborting, compensator=comp),
+        ),
+    )
+    cp = run_saga(saga, ADAPTER, make_checkpoint("g"))
+    assert cp.state is SagaState.COMPENSATED
+    # Every forward callback was told the step is NOT yet applied.
+    assert fwd_flags == [False, False]
+    # The single rolled-back step's compensator was told the step WAS applied.
+    assert comp_flags == [True]
+
+
+# --------------------------------------------------------------------------- #
+# The compensation shield is load-bearing: rollback must run to completion even  #
+# after the saga's cancel scope has FIRED. A compensator that hits a real        #
+# cancellation point mid-rollback must still finish (exactly-once compensation   #
+# must not be interrupted — fail-closed). Without shield=True the fired cancel    #
+# would interrupt the compensator at its checkpoint and leave rollback half-done. #
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.security
+def test_compensation_completes_under_fired_cancel_even_when_compensator_yields() -> None:
+    # Boundary cancel at step b => the cancel scope FIRES, then rollback runs under
+    # the shield. Each compensator awaits a REAL anyio checkpoint (a cancellation
+    # point) BEFORE recording its undo. The shield must keep that checkpoint from
+    # delivering the already-fired cancel, so BOTH compensators complete in full.
+    undone: list[str] = []
+
+    async def fwd(ctx: StepContext) -> None:
+        return None
+
+    async def cancelling_fwd(ctx: StepContext) -> None:
+        # Boundary cancel: apply, then fire the scope cancel (delivered next checkpoint).
+        ctx.request_cancel()
+
+    async def yielding_comp(ctx: StepContext) -> None:
+        await anyio.lowlevel.checkpoint()  # a real cancellation point mid-rollback
+        undone.append(ctx.step_name)  # must still run despite the fired cancel scope
+
+    saga = Saga(
+        name="shield",
+        steps=(
+            Step(name="a", forward=fwd, compensator=yielding_comp),
+            Step(name="b", forward=cancelling_fwd, compensator=yielding_comp),
+        ),
+    )
+    cp = run_saga(saga, ADAPTER, make_checkpoint("g"))
+    # Both steps applied (boundary cancel applies b), so both must be compensated,
+    # in full, in reverse order — the shield guaranteed the yields did not abort.
+    assert cp.state is SagaState.COMPENSATED
+    assert undone == ["b", "a"]
 
 
 # --------------------------------------------------------------------------- #

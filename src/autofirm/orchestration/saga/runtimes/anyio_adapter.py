@@ -38,7 +38,11 @@ from ..runtime_adapter import Scope
 
 __all__ = ["AnyioAdapter"]
 
-_T = TypeVar("_T")
+_T = TypeVar("_T")  # pragma: no mutate
+# ^ pragma: a TypeVar used ONLY in annotations (under `from __future__ import
+# annotations`, annotations are strings and never evaluated). Mutating its name
+# string or value (-> None) is provably runtime-equivalent — no behaviour change a
+# test could observe. Justified inline (CLAUDE.md §3.6).
 
 
 class _AnyioScope:
@@ -78,7 +82,12 @@ class AnyioAdapter:
 
     async def spawn(self, scope: Scope, fn: Callable[[], Coroutine[Any, Any, Any]]) -> None:
         """Start ``fn`` inside the AnyIO nursery owned by ``scope``."""
-        assert isinstance(scope, _AnyioScope)
+        # fail-closed type guard: an explicit raise (NOT assert) because asserts are
+        # stripped under `python -O`, which would silently bypass the check in prod
+        # and trip bandit B101 (ADR-001 §4). A foreign scope means a wiring bug that
+        # could leak a child outside the structured nursery -> orphan; refuse it.
+        if not isinstance(scope, _AnyioScope):
+            raise TypeError(f"AnyioAdapter requires an _AnyioScope, got {type(scope).__name__}")
         scope.start(fn)
 
     async def checkpoint(self, scope: Scope) -> None:
