@@ -33,6 +33,8 @@ Security / compliance invariants upheld
 
 from __future__ import annotations
 
+from itertools import pairwise
+
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 __all__ = [
@@ -43,6 +45,14 @@ __all__ = [
     "relative_luminance",
     "wcag_contrast_ratio",
 ]
+
+# Max value of an 8-bit sRGB channel (0..255). Named so the boundary check below
+# reads as a real bound rather than a magic number.
+_MAX_CHANNEL = 255
+
+# WCAG sRGB linearisation knee: below this normalised channel value the transfer
+# function is linear, above it the gamma curve applies (exact spec constant).
+_SRGB_LINEAR_KNEE = 0.03928
 
 # A "scale" with fewer than this many distinct steps is not a scale at all — it is
 # the single-value AI-slop default the §3.14 bar bans. Three steps is the minimum
@@ -71,7 +81,7 @@ def relative_luminance(rgb: tuple[int, int, int]) -> float:
     def _linearise(channel: int) -> float:
         c = channel / 255.0
         # WCAG piecewise sRGB linearisation (exact constants from the spec).
-        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+        return c / 12.92 if c <= _SRGB_LINEAR_KNEE else ((c + 0.055) / 1.055) ** 2.4
 
     r, g, b = (_linearise(channel) for channel in rgb)
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
@@ -116,7 +126,7 @@ class ColorRole(BaseModel):
     def _channels_in_range(cls, value: tuple[int, int, int]) -> tuple[int, int, int]:
         # fail-closed: an out-of-range channel is an invalid color and would make
         # the contrast calculation meaningless. Refuse it at the boundary.
-        if any(not 0 <= channel <= 255 for channel in value):
+        if any(not 0 <= channel <= _MAX_CHANNEL for channel in value):
             raise ValueError("color channels must each be in 0..255")
         return value
 
@@ -161,7 +171,7 @@ class DesignTokenScales(BaseModel):
             )
         if any(step <= 0 for step in value):
             raise ValueError("scale steps must be strictly positive")
-        if any(later <= earlier for earlier, later in zip(value, value[1:], strict=False)):
+        if any(later <= earlier for earlier, later in pairwise(value)):
             raise ValueError("scale steps must be strictly ascending (an ordered ladder)")
         return value
 
