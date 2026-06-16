@@ -56,6 +56,17 @@ dev = [
   "import-linter>=2.0",
   "bandit>=1.7",
 ]
+# ARTIFACT/OUTPUT-TIER (CLAUDE.md §3.10): business-deliverable generation ONLY.
+# openpyxl/python-pptx/python-docx produce client artifacts (xlsx/pptx/docx) and
+# are NOT part of the deterministic runtime closure. They may be imported ONLY by
+# the `autofirm.artifacts` package -- the rest of the runtime must stay clean
+# (import-linter contract `core-runtime-must-not-import-artifact-libs`). Installed
+# into the venv for tests; deliberately kept out of `[project.dependencies]`.
+artifacts = [
+  "openpyxl>=3.1",
+  "python-pptx>=0.6.23",
+  "python-docx>=1.1",
+]
 # ANALYSIS-ONLY (ADR-001 §5; CLAUDE.md §3.10): evidence/ showcase ONLY.
 # These MUST NEVER be imported by runtime packages (import-linter enforced).
 analysis = [
@@ -104,6 +115,14 @@ warn_unreachable = true
 disallow_any_generics = true
 mypy_path = "src"
 packages = ["autofirm"]
+
+# Artifact/OOXML libs ship no type stubs. They are confined to the
+# `autofirm.artifacts` package (import-linter enforced), so ignoring their
+# missing imports does not relax typing on the deterministic core (CLAUDE.md
+# §3.10) -- artifacts code itself stays fully checked under --strict.
+[[tool.mypy.overrides]]
+module = ["openpyxl.*", "pptx.*", "docx.*"]
+ignore_missing_imports = true
 
 # -----------------------------------------------------------------------------
 # Pytest + coverage — branch mode on; gate line ≥ 90% (ADR-001 §2, §3 step 5).
