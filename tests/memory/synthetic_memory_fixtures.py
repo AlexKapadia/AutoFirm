@@ -17,13 +17,13 @@ from autofirm.memory.memory_identifiers import (
     FrozenMemoryClock,
     SequentialMemoryIdGenerator,
 )
-from autofirm.memory.retrieval_ranking_score import RetrievalWeights
-from autofirm.memory.semantic_embedding_backend import DeterministicHashingEmbedder
 from autofirm.memory.memory_record_contract import (
     MaturityTier,
     MemoryKind,
     Visibility,
 )
+from autofirm.memory.retrieval_ranking_score import RetrievalWeights
+from autofirm.memory.semantic_embedding_backend import DeterministicHashingEmbedder
 
 # A fixed UTC epoch every deterministic test starts from (no wall clock).
 EPOCH = datetime(2025, 1, 1, tzinfo=UTC)

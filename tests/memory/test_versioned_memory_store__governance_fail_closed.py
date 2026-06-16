@@ -31,7 +31,7 @@ from autofirm.memory.versioned_memory_store import VersionedMemoryStore
 _EPOCH = datetime(2025, 1, 1, tzinfo=UTC)
 
 
-def _rec(
+def _rec(  # noqa: PLR0913 -- keyword-only record factory mirroring the contract fields
     *,
     memory_id: str,
     owner: str,

@@ -98,13 +98,37 @@ def test_shared_org_memory_readable_cross_principal() -> None:
     assert rec.memory_id in {h.record.memory_id for h in hits}
 
 
+def test_rollback_restores_old_content_as_new_head() -> None:
+    layer = make_layer()
+    rec = layer.remember(
+        written_by="agent-a", owner="agent-a", content="good v1", kind=MemoryKind.PROCEDURAL
+    )
+    layer.evolve(written_by="agent-a", owner="agent-a", memory_id=rec.memory_id, content="bad v2")
+    restored = layer.rollback(
+        written_by="agent-a", owner="agent-a", memory_id=rec.memory_id, target_version=1
+    )
+    # RB: the live head is now v1's content again, but as a NEW forward version.
+    assert restored.version == 3
+    assert restored.content == "good v1"
+    head = layer.get(reader="agent-a", owner="agent-a", memory_id=rec.memory_id)
+    assert head.content == "good v1"
+    # The bad version is still in history (append-only audit), just not live.
+    assert [h.content for h in layer.history(owner="agent-a", memory_id=rec.memory_id)] == [
+        "good v1",
+        "bad v2",
+        "good v1",
+    ]
+
+
 def test_evolve_inherits_unspecified_fields() -> None:
     layer = make_layer()
     rec = layer.remember(
         written_by="agent-a", owner="agent-a", content="v1",
         kind=MemoryKind.PROCEDURAL, tags=("skill", "pricing"), visibility=Visibility.SHARED,
     )
-    evolved = layer.evolve(written_by="agent-a", owner="agent-a", memory_id=rec.memory_id, content="v2")
+    evolved = layer.evolve(
+        written_by="agent-a", owner="agent-a", memory_id=rec.memory_id, content="v2"
+    )
     # Unspecified tags/visibility inherit from the head; kind always inherits.
     assert evolved.tags == ("skill", "pricing")
     assert evolved.visibility is Visibility.SHARED
