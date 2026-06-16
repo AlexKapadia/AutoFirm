@@ -13,8 +13,9 @@ design check-in, the market-intelligence sweep all register as beats).
 Determinism is the whole point: ticks are driven by an injected clock, never the
 wall clock, so a test advances time explicitly and two runs with the same advance
 fire the same beats in the same order. Beats are idempotent (a beat already
-in-flight is not re-entered) and registration is fail-closed (no duplicate names,
-positive intervals only).
+in-flight is not re-entered), per-beat failures are isolated (one beat's raising
+callback is caught and surfaced in the tick result, never starving its siblings),
+and registration is fail-closed (no duplicate names, positive intervals only).
 
 Where it sits
 -------------
@@ -34,11 +35,14 @@ from autofirm.heartbeat.injected_heartbeat_clock import (
     ManualHeartbeatClock,
 )
 from autofirm.heartbeat.recurring_beat_definition import BeatDefinition
+from autofirm.heartbeat.tick_result import BeatFailure, TickResult
 
 __all__ = [
     "BeatDefinition",
+    "BeatFailure",
     "DuplicateBeatError",
     "HeartbeatClock",
     "HeartbeatScheduler",
     "ManualHeartbeatClock",
+    "TickResult",
 ]

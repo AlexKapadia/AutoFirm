@@ -10,12 +10,16 @@ name order. Each fired beat's next-due time rolls forward to the first boundary
 strictly after "now" (missed periods coalesce into one fire, so a large time jump
 fires each due beat once, never an unbounded catch-up burst).
 
-Two guarantees make it safe for long-running autonomous use:
+Three guarantees make it safe for long-running autonomous use:
 
 * **Idempotent re-entrancy:** a beat already executing is never re-entered. If a
   beat's callback itself calls :meth:`tick` (directly or transitively), the
   in-flight beat is skipped, so a beat can never double-fire within one logical
   tick.
+* **Per-beat failure isolation:** if one beat's callback raises, the failure is
+  caught, recorded as a structured failure in the returned ``TickResult``, and the
+  remaining due beats still fire. One bad beat can never starve its siblings, and
+  the failure is surfaced (fail-closed), never silently swallowed.
 * **Fail-closed registration:** registering a duplicate beat name, or a
   mis-specified beat, is refused — the schedule can never hold two beats fighting
   over one name.
@@ -43,6 +47,7 @@ from datetime import datetime, timedelta
 
 from autofirm.heartbeat.injected_heartbeat_clock import HeartbeatClock
 from autofirm.heartbeat.recurring_beat_definition import BeatDefinition
+from autofirm.heartbeat.tick_result import BeatFailure, TickResult
 
 __all__ = ["DuplicateBeatError", "HeartbeatScheduler"]
 
@@ -90,20 +95,31 @@ class HeartbeatScheduler:
         """The set of currently-registered beat names (a read-only snapshot)."""
         return frozenset(self._beats)
 
-    def tick(self) -> tuple[str, ...]:
-        """Fire every beat whose next-due time has been reached; return their names.
+    def tick(self) -> TickResult:
+        """Fire every due beat independently; return what fired and what failed.
 
         Beats fire in stable name-sorted order (determinism). A beat already
         executing (in-flight) is skipped — the idempotent re-entrancy guard — so a
         callback that re-enters :meth:`tick` can never cause a double-fire. Each
-        fired beat's next-due time rolls forward to the first boundary strictly
+        due beat's next-due time rolls forward to the first boundary strictly
         after "now", coalescing any missed periods into a single fire.
 
+        **Per-beat failure isolation (the resilience guarantee):** each due beat's
+        callback runs inside its own ``try``/``except``. If a callback raises, the
+        exception is CAUGHT, recorded as a structured :class:`BeatFailure`, and the
+        loop CONTINUES to the remaining due beats. A single persistently-failing
+        beat therefore can never starve its siblings — without this, one bad beat
+        wedged every later-sorted beat on every tick. The failure is surfaced in
+        the returned :class:`TickResult` (fail-closed: reported and auditable, not
+        silently swallowed), never re-raised out of the tick.
+
         Returns:
-            The names of the beats fired on this tick, in the order fired.
+            A :class:`TickResult` carrying the names that fired cleanly and the
+            per-beat failures, both in fire order.
         """
         now = self._clock.now()
         fired: list[str] = []
+        failures: list[BeatFailure] = []
         # Stable, deterministic order: sort by name so two runs fire identically.
         for name in sorted(self._beats):
             if name in self._in_flight:
@@ -116,13 +132,21 @@ class HeartbeatScheduler:
             self._in_flight.add(name)  # guard set BEFORE calling out (re-entrancy)
             try:
                 beat.callback()
+            except Exception as exc:  # isolate ANY callback failure (broad on purpose)
+                # Resilience: one beat's failure must not wedge its siblings. Capture
+                # the failure as structured data and keep going round the loop so
+                # every other due beat still fires. fail-closed (§5.6): the failure
+                # is SURFACED in the result below, never silently swallowed.
+                failures.append(BeatFailure(name=name, error=repr(exc)))
+            else:
+                fired.append(name)  # clean fire — recorded only on success
             finally:
-                # Always clear the guard and roll the schedule forward, even if the
-                # callback raised — a failing beat must not wedge the scheduler.
+                # Always clear the guard and roll the schedule forward, even on a
+                # failure, so a failing beat reschedules normally and never re-fires
+                # instantly or blocks the rest of this tick.
                 self._in_flight.discard(name)
                 self._next_due[name] = self._advance_due(due, beat.interval_seconds, now)
-            fired.append(name)
-        return tuple(fired)
+        return TickResult(fired=tuple(fired), failures=tuple(failures))
 
     @staticmethod
     def _advance_due(due: datetime, interval_seconds: float, now: datetime) -> datetime:
