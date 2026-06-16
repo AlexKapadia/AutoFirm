@@ -1,0 +1,125 @@
+# =============================================================================
+# AutoFirm CI -- the enforcement plane for the ADR-001 gates (CLAUDE.md §5.5/§5.6).
+#
+# Why this exists
+# ---------------
+# ADR-001 §3/§4 NAME the gates (lint, types, schema/import contract, tests +
+# coverage, mutation = ACCEPTANCE SIGNAL, SAST, secret-scan) but until now they
+# were not ENFORCED anywhere -- `.github/workflows/` was empty, and the Makefile's
+# `mutation` target ignored mutmut's exit code. This workflow makes every gate
+# real and FAIL-CLOSED: a red gate (or a tool that cannot run) fails the build;
+# nothing is skipped (CLAUDE.md §5.6).
+#
+# Why Linux
+# ---------
+# ADR-001's "Native-Windows caveat" pins CI + the isolation boundary to Linux
+# containers. The mutation gate specifically REQUIRES Linux: on native Windows,
+# mutmut 2.x cannot abort an infinite-loop mutant (e.g. a mutated `while` bound in
+# the Merkle modules), so the full mutation pass stalls. On Linux the signal-based
+# per-test timeout aborts such mutants, so the FULL pass over ALL audit modules
+# completes and the gate can fail closed on any survivor. See
+# docs/architecture/experiments/E5-tamper-evident-log-results.md ("Known tooling
+# limitation").
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: ["main", "experiment/**", "feature/**", "fix/**"]
+  pull_request:
+    branches: ["main"]
+
+# Least privilege: read-only token (CLAUDE.md §5.6); no write scopes needed.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Gate 1-5: lint -> types -> import contract -> tests + coverage -> SAST.
+  # Cheapest + most-likely-to-fail first (ADR-001 §3), fail-fast within the job.
+  # ---------------------------------------------------------------------------
+  gates:
+    name: lint / types / contract / tests+coverage / sast
+    runs-on: ubuntu-latest
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install (runtime + dev + test extras)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,test]"
+
+      - name: Gate 1a -- ruff lint (self-documenting-name + style)
+        run: python -m ruff check src tests scripts
+
+      - name: Gate 1b -- mypy --strict (type gate)
+        run: python -m mypy
+
+      - name: Gate 2 -- import-linter contract (runtime must not import analysis libs)
+        run: python -m importlinter.cli lint
+
+      - name: Gate 3+5 -- pytest with branch coverage (fails < 90% line via pyproject)
+        run: python -m pytest
+
+      - name: Gate -- Bandit SAST (fail on confirmed high/critical)
+        run: python -m bandit -q -r src -c pyproject.toml
+
+  # ---------------------------------------------------------------------------
+  # Secret-scanning gate (ADR-001 §4): fail the build on ANY committed secret.
+  # gitleaks runs natively on Linux; a scanner that cannot run is a FAILED gate.
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: secret-scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so gitleaks scans every commit
+      - name: gitleaks (fail-closed on any finding)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+
+  # ---------------------------------------------------------------------------
+  # Gate 6: the MUTATION GATE -- the ACCEPTANCE SIGNAL (ADR-001 §3 step 6;
+  # CLAUDE.md §3.6). Runs the FULL mutmut pass over ALL mutated modules
+  # (pyproject `paths_to_mutate` = src/autofirm/) on Linux, then fails the build
+  # on ANY surviving / timed-out / suspicious / untested mutant. This is the gate
+  # that could not run on the Windows dev box; CI is its enforcement plane.
+  # ---------------------------------------------------------------------------
+  mutation-gate:
+    name: mutation gate (full pass, fail-closed on survivors)
+    runs-on: ubuntu-latest
+    needs: [gates] # only spend mutation time once the cheap gates are green
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install (runtime + test extras)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+
+      - name: Run the full mutation gate (fail-closed on any survivor)
+        # The helper runs `mutmut run` over pyproject's paths_to_mutate, then
+        # grades the result cache directly (mutmut's own `results` printer is
+        # broken under Python 3.13 + pony-orm). Non-zero exit on any survivor.
+        run: python scripts/run_mutation_gate.py

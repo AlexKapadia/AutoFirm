@@ -35,9 +35,14 @@ unit: ## Gate 3: pytest with branch coverage (unit + property/PBT).
 
 coverage: unit ## Gate 5: coverage gate is enforced by --cov-fail-under in pyproject.
 
-mutation: ## Gate 6: mutation testing — the ACCEPTANCE SIGNAL. Prints the score.
-	-$(PY) -m mutmut run
-	$(PY) -m mutmut results
+mutation: ## Gate 6: mutation testing — the ACCEPTANCE SIGNAL. FAILS on any survivor.
+	# Runs mutmut then grades the cache directly (mutmut's own `results` printer
+	# is broken on Python 3.13 + pony-orm) and FAILS CLOSED on any surviving
+	# mutant. The full pass over the loop-bearing audit modules is the Linux-CI
+	# enforcement plane (see docs/.../E5-tamper-evident-log-results.md); on a
+	# native-Windows dev box scope it to the non-loop core, e.g.:
+	#   $(PY) scripts/run_mutation_gate.py --paths src/autofirm/audit/rfc6962_hashing.py
+	$(PY) scripts/run_mutation_gate.py
 
 sast: ## SAST gate: bandit over runtime code (ADR-001 §4).
 	$(PY) -m bandit -q -r src -c pyproject.toml

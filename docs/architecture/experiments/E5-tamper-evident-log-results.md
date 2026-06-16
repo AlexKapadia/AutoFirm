@@ -136,6 +136,20 @@ numbers are preserved in the tables above.
   loop/split error via the timeout). CI on Linux (where the `signal` timeout
   method works) completes these modules cleanly. The remaining survivors observed
   before the stall were all error-text mutants, now killed.
+- **Enforcement mechanism (no silent cap, CLAUDE.md §5.6):** the mutation gate is
+  now genuinely ENFORCED, not merely asserted. (1) A fail-closed grader,
+  `scripts/run_mutation_gate.py`, runs mutmut and reads the `.mutmut-cache`
+  SQLite DB directly -- because `mutmut results` itself crashes on Python 3.13 +
+  pony-orm (`TypeError: 'QueryResultIterator' object is not iterable`) -- and
+  exits non-zero on ANY surviving / timed-out / suspicious / untested mutant.
+  (2) The Makefile `mutation` target now calls that grader (previously it ran
+  `-mutmut run`, whose leading `-` ignored the exit code, so a survivor could
+  never fail the build). (3) `.github/workflows/ci.yml` runs the FULL mutmut pass
+  over ALL audit modules on `ubuntu-latest` -- the only platform where mutmut can
+  abort the infinite-loop mutants -- as a required, fail-closed job, alongside the
+  ruff / mypy / import-linter / pytest+coverage / Bandit / gitleaks gates. The
+  Windows stall is therefore a known DEV-BOX tooling limitation, not a gap in the
+  enforced bar: the full mutation gate runs to completion and fails closed in CI.
 
 ## Citations
 
