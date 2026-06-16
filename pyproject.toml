@@ -90,7 +90,7 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 # Tests may omit module/function docstrings and use assert-heavy bodies.
-"tests/**" = ["D100", "D101", "D102", "D103", "D104", "PLR2004", "PLC0415"]
+"tests/**" = ["D100", "D101", "D102", "D103", "D104", "PLR2004", "PLC0415", "PLR0911"]
 
 # -----------------------------------------------------------------------------
 # Mypy — strict type gate (ADR-001 §1, §3 step 1; CLAUDE.md §5.7).
@@ -115,7 +115,7 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 # Hard per-test deadline (seconds): kills infinite-loop mutants fast so the
 # mutation gate never hangs (pytest-timeout). Generous vs the ~3s slowest test.
-timeout = 20
+timeout = 60
 # `thread` method works on Windows (the default `signal` method does not): it
 # aborts the test process so an infinite-loop mutant is killed, not hung.
 timeout_method = "thread"

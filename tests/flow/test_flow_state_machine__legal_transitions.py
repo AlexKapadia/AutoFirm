@@ -40,7 +40,7 @@ _SKIPPING_EDGES = [
 
 @pytest.mark.unit
 def test_done_is_the_single_terminal_sink() -> None:
-    assert TERMINAL_STATES == frozenset({WorkState.DONE})
+    assert frozenset({WorkState.DONE}) == TERMINAL_STATES
     assert is_terminal(WorkState.DONE)
     # Every non-DONE state has at least one outgoing edge (flow never dead-ends
     # except at DONE).
