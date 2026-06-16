@@ -132,7 +132,9 @@ def verify_consistency(
     # subtree seed.
     # m a power of two => old root is a complete subtree, omitted from the proof.
     path = [old_root, *proof] if m & (m - 1) == 0 else list(proof)
-    if not path:
+    if not path:  # pragma: no cover -- defensive: unreachable for valid 0<m<n
+        # (m a power of two prepends old_root; otherwise proof is non-empty), but
+        # kept fail-closed so a future caller change cannot fold an empty path.
         return False
 
     # `node` (old-side) and `new_node` (new-side) are folded in lockstep up the

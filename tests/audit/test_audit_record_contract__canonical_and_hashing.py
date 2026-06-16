@@ -64,10 +64,15 @@ def test_leaf_and_node_hash_of_same_bytes_differ_second_preimage_defence() -> No
 
 def test_node_hash_rejects_wrong_width_children_fail_closed() -> None:
     good = leaf_hash(b"x")
-    with pytest.raises(ValueError):
-        node_hash(good, b"too-short")
-    with pytest.raises(ValueError):
-        node_hash(b"", good)
+    # The fail-closed error must NAME the control and report the offending widths
+    # so an operator can act on it. Assert the EXACT message (start-anchored, full
+    # string) so error-text mutants -- which prepend/append "XX" -- are killed.
+    with pytest.raises(ValueError) as exc1:
+        node_hash(good, b"too-short")  # 9-byte right child
+    assert str(exc1.value) == "node_hash requires two 32-byte child hashes; got 32 and 9"
+    with pytest.raises(ValueError) as exc2:
+        node_hash(b"", good)  # empty left child
+    assert str(exc2.value) == "node_hash requires two 32-byte child hashes; got 0 and 32"
 
 
 # --------------------------- hashes-not-PII (T1) --------------------------- #

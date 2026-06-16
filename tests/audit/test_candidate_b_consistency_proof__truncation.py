@@ -156,6 +156,30 @@ def test_malformed_proof_node_width_rejected() -> None:
     ) is False
 
 
+def test_overlong_forged_proof_rejected_mid_fold() -> None:
+    # A proof padded with extra nodes beyond the tree height drives sn to 0 before
+    # the path is consumed -> rejected (the mid-loop forged-proof guard).
+    full = leaves(4)
+    proof = merkle_consistency_proof(2, full)
+    padded = [*proof, b"\x11" * HASH_BYTES, b"\x22" * HASH_BYTES, b"\x33" * HASH_BYTES]
+    assert (
+        verify_consistency(
+            2, 4, merkle_tree_hash(full[:2]), merkle_tree_hash(full), padded
+        )
+        is False
+    )
+
+
+def test_empty_proof_for_power_of_two_prefix_rejected() -> None:
+    # m=2 (power of two) with an EMPTY proof: the verifier prepends old_root so the
+    # folded path has length 1 and cannot reach a size-4 root -> rejected.
+    full = leaves(4)
+    assert (
+        verify_consistency(2, 4, merkle_tree_hash(full[:2]), merkle_tree_hash(full), [])
+        is False
+    )
+
+
 def test_swapped_roots_rejected() -> None:
     full = leaves(6)
     proof = merkle_consistency_proof(2, full)

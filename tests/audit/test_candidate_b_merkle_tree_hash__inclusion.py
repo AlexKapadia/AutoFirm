@@ -44,10 +44,13 @@ def test_largest_power_of_two_below_known_values(n: int, expected_k: int) -> Non
 
 
 def test_largest_power_of_two_below_refuses_small_n() -> None:
-    with pytest.raises(ValueError):
+    # Exact-message asserts kill error-text mutants on this fail-closed guard.
+    with pytest.raises(ValueError) as e1:
         largest_power_of_two_below(1)
-    with pytest.raises(ValueError):
+    assert str(e1.value) == "largest_power_of_two_below requires n >= 2, got 1"
+    with pytest.raises(ValueError) as e0:
         largest_power_of_two_below(0)
+    assert str(e0.value) == "largest_power_of_two_below requires n >= 2, got 0"
 
 
 @settings(max_examples=200)
@@ -130,10 +133,12 @@ def test_audit_path_single_leaf_is_empty() -> None:
 
 
 def test_audit_path_refuses_out_of_range_index() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as e_over:
         merkle_audit_path(3, [L(0), L(1)])
-    with pytest.raises(ValueError):
+    assert str(e_over.value) == "leaf index 3 out of range for tree size 2"
+    with pytest.raises(ValueError) as e_neg:
         merkle_audit_path(-1, [L(0)])
+    assert str(e_neg.value) == "leaf index -1 out of range for tree size 1"
 
 
 def test_inclusion_verifies_for_known_two_leaf_tree() -> None:

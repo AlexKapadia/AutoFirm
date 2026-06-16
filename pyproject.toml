@@ -33,6 +33,10 @@ test = [
   "pytest-cov>=5.0",
   "coverage[toml]>=7.5",
   "hypothesis>=6.100",
+  # Hard per-test deadline so an infinite-loop mutant (e.g. a mutated `while`
+  # bound) is caught as a fast failure during mutation testing rather than
+  # hanging the runner -- makes the mutation gate reliable on every platform.
+  "pytest-timeout>=2.3",
   # Pinned to 2.x: mutmut 3.x dropped native-Windows support (requires WSL);
   # 2.x runs natively on the Windows dev box and exposes the
   # `mutmut run` / `mutmut results` CLI that ADR-001 §3 wires. (CI Linux can use
@@ -103,6 +107,12 @@ packages = ["autofirm"]
 minversion = "8.0"
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# Hard per-test deadline (seconds): kills infinite-loop mutants fast so the
+# mutation gate never hangs (pytest-timeout). Generous vs the ~3s slowest test.
+timeout = 20
+# `thread` method works on Windows (the default `signal` method does not): it
+# aborts the test process so an infinite-loop mutant is killed, not hung.
+timeout_method = "thread"
 addopts = [
   "-q",
   "--strict-markers",
@@ -133,6 +143,8 @@ paths_to_mutate = "src/autofirm/"
 tests_dir = "tests/"
 # Run pytest without the coverage gate during mutation (coverage gating is a
 # separate step); -x stops at the first failure so a killed mutant returns fast.
+# The per-test `timeout` ini option (pytest.ini_options) bounds infinite-loop
+# mutants so the mutation gate cannot hang on a mutated loop bound.
 runner = "python -m pytest -x -q -p no:cacheprovider --no-header --rootdir=. -o addopts='' -o pythonpath=src"
 
 # -----------------------------------------------------------------------------
