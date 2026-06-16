@@ -29,14 +29,14 @@ Security / compliance invariants upheld
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
 __all__ = ["InsightCategory", "MarketInsight"]
 
 
-class InsightCategory(str, Enum):
+class InsightCategory(StrEnum):
     """The closed taxonomy a sensed signal is classified into.
 
     A closed enum (not free text) keeps the green-light gate's category-weighting

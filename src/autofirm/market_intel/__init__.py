@@ -93,7 +93,7 @@ __all__ = [
     "SignalContribution",
     "SignalRejectedError",
     "SweepResult",
-    "register_daily_sensing_beat",
     "decide_green_light",
+    "register_daily_sensing_beat",
     "sanitize_untrusted_signal",
 ]
