@@ -98,10 +98,10 @@ def _recency_factor(written_at: datetime, reference: datetime, decay_base: float
     elapsed_hours = (reference - written_at).total_seconds() / 3600.0
     if elapsed_hours <= 0.0:
         return 1.0  # clamp future/just-written records to the max (no >1 score)
-    return decay_base**elapsed_hours
+    return float(decay_base**elapsed_hours)
 
 
-def score_record(
+def score_record(  # noqa: PLR0913 -- keyword-only scoring inputs (record, query, time, weights)
     *,
     record_vector: tuple[float, ...],
     query_vector: tuple[float, ...],
