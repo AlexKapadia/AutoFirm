@@ -126,7 +126,13 @@ def test_higher_margin_never_lowers_ltv(
     assert ltv_hi >= ltv_lo  # higher margin never lowers LTV
 
 
-@given(margin=_fraction, churn=_fraction, cac=_positive_money, a1=_positive_money, a2=_positive_money)
+@given(
+    margin=_fraction,
+    churn=_fraction,
+    cac=_positive_money,
+    a1=_positive_money,
+    a2=_positive_money,
+)
 def test_higher_arpa_never_lowers_ltv(
     margin: Decimal, churn: Decimal, cac: Decimal, a1: Decimal, a2: Decimal
 ) -> None:
