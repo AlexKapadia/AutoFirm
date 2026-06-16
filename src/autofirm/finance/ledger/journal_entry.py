@@ -35,6 +35,9 @@ from autofirm.foundation.money.exact_money_arithmetic import minor_units
 
 __all__ = ["JournalEntry", "Posting", "PostingSide"]
 
+# Double-entry needs at least one debit and one credit, hence two postings.
+_MIN_POSTINGS_PER_ENTRY = 2
+
 
 class PostingSide(Enum):
     """Which side of the ledger a single posting hits."""
@@ -95,7 +98,7 @@ class JournalEntry:
         """Enforce the debits==credits invariant before the entry is accepted."""
         if not self.description or not self.description.strip():  # fail-closed: audit memo required
             raise ValueError("journal entry description must be non-empty")
-        if len(self.postings) < 2:  # fail-closed: double-entry needs >=2 postings
+        if len(self.postings) < _MIN_POSTINGS_PER_ENTRY:  # fail-closed: needs >=2 postings
             raise ValueError("a journal entry needs at least two postings")
         total_debit = self.total_debits()
         total_credit = self.total_credits()
