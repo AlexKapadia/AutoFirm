@@ -31,16 +31,18 @@ Security / compliance invariants upheld
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from autofirm.comms.message_envelope_contract import MessageEnvelope
 
-__all__ = ["MessageHandler", "DynamicAgentRegistry"]
+__all__ = ["DynamicAgentRegistry", "MessageHandler"]
 
 # An async handler invoked with the envelope; it performs the agent's reaction.
 # Its return is ignored -- success is "returned without raising"; a raise drives
-# the bus's HANDLER_ERROR dead-letter path.
-MessageHandler = Callable[[MessageEnvelope], Awaitable[None]]
+# the bus's HANDLER_ERROR dead-letter path. Typed as a coroutine function (not a
+# bare Awaitable) to match AnyIO's ``start_soon`` contract used by the bus.
+MessageHandler = Callable[[MessageEnvelope], Coroutine[Any, Any, None]]
 
 
 class DynamicAgentRegistry:
