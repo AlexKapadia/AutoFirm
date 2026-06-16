@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
-__all__ = ["SENSITIVE_WORKSPACE_DIRNAME", "WorkspaceDataBoundary", "WorkspaceBoundaryError"]
+__all__ = ["SENSITIVE_WORKSPACE_DIRNAME", "WorkspaceBoundaryError", "WorkspaceDataBoundary"]
 
 # The fixed, gitignored directory name that holds all sensitive workspace data.
 # Committed .gitignore excludes it; this constant is the single source of truth.
@@ -103,8 +103,10 @@ class WorkspaceDataBoundary:
         if ".." in candidate.parts:
             raise WorkspaceBoundaryError("sensitive path must not contain '..'")
         resolved = self._root / candidate
-        # Defence-in-depth: re-assert containment after joining (belt and braces).
-        if not _is_relative_to(resolved, self._root):
+        # Defence-in-depth: re-assert containment after joining. The '..'/absolute
+        # guards above already make this unreachable for any input, so it is an
+        # intentional belt-and-braces backstop, not a normal path (pragma: no cover).
+        if not _is_relative_to(resolved, self._root):  # pragma: no cover
             raise WorkspaceBoundaryError("resolved path escaped the sensitive root")
         return str(resolved)
 

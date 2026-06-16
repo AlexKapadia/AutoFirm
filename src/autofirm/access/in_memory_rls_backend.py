@@ -38,7 +38,7 @@ Security / compliance invariants upheld (CLAUDE.md §5.6)
 
 from __future__ import annotations
 
-from autofirm.access.tenant_scoped_session_contract import RlsBackend, TenantRow
+from autofirm.access.tenant_scoped_session_contract import TenantRow
 
 __all__ = ["CrossTenantWriteRejected", "InMemoryRlsBackend"]
 

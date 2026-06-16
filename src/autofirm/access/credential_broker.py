@@ -7,8 +7,9 @@ What this does
 component id and the explicit :class:`~autofirm.access.credential_scope_contract.CredentialScope`
 it needs, the broker:
 
-1. pulls the raw secret from the injected :class:`~autofirm.access.secret_source_protocol.SecretSource`
-   (env / secret-manager only) -- failing closed if none is configured;
+1. pulls the raw secret from the injected
+   :class:`~autofirm.access.secret_source_protocol.SecretSource` (env /
+   secret-manager only) -- failing closed if none is configured;
 2. stamps an absolute short TTL from the injected clock;
 3. emits an append-only audit record of the issuance (non-secret metadata only); and
 4. returns the credential.
