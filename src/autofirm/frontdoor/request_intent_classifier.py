@@ -26,7 +26,7 @@ Security / compliance invariants upheld
 * **Determinism (§3.11):** :class:`KeywordIntentClassifier` is a pure function of the
   body — same body, same intent terms, every run, regardless of dict ordering.
 * **Bounded output:** the term set is naturally bounded by the request body, which is
-  itself capped at the boundary (:data:`~autofirm.frontdoor.human_request_contract.MAX_REQUEST_BODY_CHARS`).
+  itself capped at the boundary (``MAX_REQUEST_BODY_CHARS`` in the request contract).
 """
 
 from __future__ import annotations
