@@ -35,6 +35,11 @@ from docx.oxml.ns import qn
 from docx.shared import Pt
 
 from autofirm.artifacts.artifact_spec_validation_errors import ArtifactSpecError
+from autofirm.artifacts.deterministic_document_properties import (
+    ARTIFACT_AUTHOR,
+    FIXED_TIMESTAMP,
+)
+from autofirm.artifacts.ooxml_timestamp_normalizer import normalize_ooxml_timestamps
 
 if TYPE_CHECKING:
     from docx.document import Document as DocxDocument
@@ -75,9 +80,17 @@ def build_business_document(spec: DocumentSpec, destination: Path) -> Path:
             document.add_paragraph(paragraph)
     _add_page_number_footer(document)
 
+    # Pin core-property timestamps for byte-stable output (determinism —
+    # CLAUDE.md §3.6); python-docx otherwise records the build wall-clock time.
+    document.core_properties.author = ARTIFACT_AUTHOR
+    document.core_properties.created = FIXED_TIMESTAMP
+    document.core_properties.modified = FIXED_TIMESTAMP
+
     destination.parent.mkdir(parents=True, exist_ok=True)
     document.save(str(destination))  # python-docx save() takes a path string
-    return destination
+    # python-docx re-stamps `modified` to now during save(); normalise post-save
+    # so identical specs produce identical bytes (determinism — CLAUDE.md §3.6).
+    return normalize_ooxml_timestamps(destination)
 
 
 def _write_title(document: DocxDocument, title: str) -> None:

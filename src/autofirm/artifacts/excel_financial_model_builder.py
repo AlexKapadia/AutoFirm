@@ -38,7 +38,12 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.worksheet import Worksheet
 
 from autofirm.artifacts.artifact_spec_validation_errors import ArtifactSpecError
+from autofirm.artifacts.deterministic_document_properties import (
+    ARTIFACT_AUTHOR,
+    FIXED_TIMESTAMP,
+)
 from autofirm.artifacts.financial_model_spec import _referenced_keys
+from autofirm.artifacts.ooxml_timestamp_normalizer import normalize_ooxml_timestamps
 
 if TYPE_CHECKING:
     from autofirm.artifacts.financial_model_spec import FinancialModelSpec
@@ -91,9 +96,17 @@ def build_excel_financial_model(spec: FinancialModelSpec, destination: Path) -> 
     _write_calculations_sheet(calc_ws, spec, cell_index)
     _write_outputs_sheet(outputs_ws, spec, cell_index)
 
+    # Pin core-property timestamps so identical specs yield identical bytes
+    # (determinism — CLAUDE.md §3.6); openpyxl otherwise stamps "now".
+    workbook.properties.creator = ARTIFACT_AUTHOR
+    workbook.properties.created = FIXED_TIMESTAMP
+    workbook.properties.modified = FIXED_TIMESTAMP
+
     destination.parent.mkdir(parents=True, exist_ok=True)
     workbook.save(destination)
-    return destination
+    # openpyxl re-stamps `modified` to now during save(); normalise post-save so
+    # identical specs produce identical bytes (determinism — CLAUDE.md §3.6).
+    return normalize_ooxml_timestamps(destination)
 
 
 class _CellIndex:
