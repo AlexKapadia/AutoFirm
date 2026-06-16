@@ -83,11 +83,14 @@ def largest_power_of_two_below(n: int) -> int:
     if n < _MIN_SPLITTABLE_TREE:
         # fail-closed: callers must only split trees of size >= 2.
         raise ValueError(f"largest_power_of_two_below requires n >= 2, got {n}")
-    k = 1
-    # Double k while the NEXT double would still stay strictly below n.
-    while k * 2 < n:
-        k *= 2
-    return k
+    # Provably-bounded closed form (no loop -> no mutant can spin): the largest
+    # power of two strictly below ``n`` is ``2 ** floor(log2(n - 1))``. For
+    # ``n >= 2`` we have ``n - 1 >= 1`` so ``(n - 1).bit_length() >= 1`` and the
+    # shift exponent is non-negative. Examples: n=2 -> (1).bit_length()-1 = 0 ->
+    # 1; n=5 -> (4).bit_length()-1 = 2 -> 4; n=8 -> (7).bit_length()-1 = 2 -> 4.
+    # This is the same value the prior ``while k*2 < n`` doubling produced, but
+    # with no unbounded loop a mutation cannot create an infinite busy-loop.
+    return 1 << ((n - 1).bit_length() - 1)
 
 
 def merkle_tree_hash(leaves: list[bytes]) -> bytes:

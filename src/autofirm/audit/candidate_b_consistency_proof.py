@@ -142,9 +142,22 @@ def verify_consistency(
     # both reconstructions, differing only when the old boundary sits inside a
     # subtree (then the old side does not consume a right sibling).
     fn, sn = m - 1, n - 1
+    # Every shift below strictly halves a non-negative ``fn``/``sn``, so each loop
+    # runs at most ``n.bit_length()`` times (the tree height). We bound EVERY loop
+    # with that hard cap and fail closed if it is ever exceeded: a mutation that
+    # removed a ``>>= 1`` (turning a loop unbounded) now raises instead of spinning
+    # forever, so no mutant can hang the gate -- and the cap is unreachable on
+    # honest inputs, so the bound itself is exercised only by a fault.
+    max_levels = n.bit_length() + 1
+    shifts = 0
     while fn % 2 == 1:  # shift past trailing complete-subtree levels
         fn >>= 1
         sn >>= 1
+        shifts += 1
+        if shifts > max_levels:
+            # fail-closed: bounded-loop guard -- a non-halving fn is impossible
+            # for an honest 0<m<n, so refuse rather than loop unbounded.
+            raise ValueError("consistency fold exceeded tree height (corrupt state)")
     node = path[0]
     new_node = path[0]
     for sibling in path[1:]:
@@ -155,9 +168,16 @@ def verify_consistency(
             # the left for BOTH reconstructions.
             node = node_hash(sibling, node)
             new_node = node_hash(sibling, new_node)
+            inner = 0
             while fn % 2 == 0 and fn != 0:
                 fn >>= 1
                 sn >>= 1
+                inner += 1
+                if inner > max_levels:
+                    # fail-closed: bounded-loop guard (see above).
+                    raise ValueError(
+                        "consistency fold exceeded tree height (corrupt state)"
+                    )
         else:
             # Old node is a left child: only the NEW reconstruction absorbs the
             # right sibling; the old root has already fully formed.
