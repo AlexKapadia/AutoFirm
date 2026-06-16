@@ -35,8 +35,8 @@ Security / compliance invariants upheld
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Mapping
 
 from autofirm.org.org_identifiers import ArtifactId, RoleId
 
@@ -52,6 +52,7 @@ class DoubleOwnershipError(Exception):
     """
 
     def __init__(self, artifact_id: ArtifactId, current_owner: RoleId, claimant: RoleId) -> None:
+        """Record the contested artifact, its current sole owner, and the denied claimant."""
         self.artifact_id = artifact_id
         self.current_owner = current_owner
         self.claimant = claimant
@@ -72,6 +73,7 @@ class ArtifactOwnershipLedger:
     __slots__ = ("_owners",)
 
     def __init__(self, owners: Mapping[ArtifactId, RoleId] | None = None) -> None:
+        """Build a ledger from an optional artifact->owner map (copied defensively)."""
         # Copy into a private dict then expose read-only, so an external caller
         # cannot mutate ownership by holding a reference to the passed-in map.
         self._owners: dict[ArtifactId, RoleId] = dict(owners or {})

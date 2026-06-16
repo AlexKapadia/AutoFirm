@@ -69,8 +69,11 @@ class RoleLifecycleError(Exception):
     original :class:`DynamicOrg` is left untouched, preserving immutability).
     """
 
-    def __init__(self, reason: str, audited_state: OrgState) -> None:
+    def __init__(self, reason: str, audited_state: OrgState | None = None) -> None:
+        """Record the refusal reason and the post-refusal audited state (None at founding)."""
         super().__init__(reason)
+        # None only for a founding-time refusal (no org/trail exists yet to audit
+        # onto); every post-founding refusal carries the audited state.
         self.audited_state = audited_state
 
 
@@ -82,9 +85,10 @@ class DynamicOrg:
     :class:`DynamicOrg` wrapping the next state; the engine is immutable.
     """
 
-    __slots__ = ("_state", "_clock", "_ids")
+    __slots__ = ("_clock", "_ids", "_state")
 
     def __init__(self, state: OrgState, clock: Clock, ids: IdGenerator) -> None:
+        """Wrap an org ``state`` with its injected determinism seams (clock, id-gen)."""
         self._state = state
         self._clock = clock
         self._ids = ids
@@ -103,7 +107,9 @@ class DynamicOrg:
         hierarchy = OrgHierarchy.with_root(root)
         ledger = claim_artifacts(ArtifactOwnershipLedger(), root)  # single-writer claim
         state = OrgState(hierarchy=hierarchy, ownership=ledger, trail=OrgAuditTrail())
-        state = append_event(state, clock, OrgEventKind.ROLE_HIRED, root.role_id, "founded org root")
+        state = append_event(
+            state, clock, OrgEventKind.ROLE_HIRED, root.role_id, "founded org root"
+        )
         return cls(state, clock, ids)
 
     @property
@@ -128,7 +134,7 @@ class DynamicOrg:
             hierarchy = self._state.hierarchy.with_role(charter)  # re-validates the tree
             ownership = claim_artifacts(self._state.ownership, charter)  # single-writer
         except (AuthorshipError, HierarchyInvariantError, DoubleOwnershipError) as exc:
-            raise self._refuse(charter.role_id, str(exc))  # audited fail-closed refusal
+            raise self._refuse(charter.role_id, str(exc)) from exc  # audited fail-closed refusal
         return self._commit(hierarchy, ownership, OrgEventKind.ROLE_HIRED, charter.role_id, "hired")
 
     def auto_create_on_gap(self, gap: OrgGap, new_role: RoleCharter) -> DynamicOrg:
@@ -153,7 +159,7 @@ class DynamicOrg:
             hierarchy = self._state.hierarchy.with_role(new_role)
             ownership = claim_artifacts(self._state.ownership, new_role)
         except (AuthorshipError, HierarchyInvariantError, DoubleOwnershipError) as exc:
-            raise self._refuse(new_role.role_id, str(exc))
+            raise self._refuse(new_role.role_id, str(exc)) from exc
         detail = f"auto-created for {gap.kind.value}: {gap.rationale}"
         return self._commit(
             hierarchy, ownership, OrgEventKind.ROLE_AUTO_CREATED, new_role.role_id, detail
@@ -185,7 +191,7 @@ class DynamicOrg:
             hierarchy = self._state.hierarchy.with_role(new_charter)
             ownership = reassign_artifacts(self._state.ownership, old, new_charter)
         except (AuthorshipError, HierarchyInvariantError, DoubleOwnershipError) as exc:
-            raise self._refuse(role_id, str(exc))
+            raise self._refuse(role_id, str(exc)) from exc
         return self._commit(hierarchy, ownership, OrgEventKind.ROLE_RESCOPED, role_id, "rescoped")
 
     def fire(self, role_id: RoleId, reassign_reports_to: RoleId | None = None) -> DynamicOrg:
@@ -214,7 +220,9 @@ class DynamicOrg:
     # Internal policy helpers (state-folding delegated to internals)        #
     # --------------------------------------------------------------------- #
 
-    def _reassign_reports_before_fire(self, role_id: RoleId, reassign_to: RoleId | None) -> DynamicOrg:
+    def _reassign_reports_before_fire(
+        self, role_id: RoleId, reassign_to: RoleId | None
+    ) -> DynamicOrg:
         """Re-parent a fired manager's direct reports, or refuse if none specified."""
         reports = self._state.hierarchy.direct_reports(role_id)
         if not reports:

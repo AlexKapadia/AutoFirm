@@ -42,7 +42,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 from autofirm.org.org_identifiers import ArtifactId, RoleId
 
-__all__ = ["RoleCharter", "ROOT_AUTHOR"]
+__all__ = ["ROOT_AUTHOR", "RoleCharter"]
 
 # The sentinel author of the root role: the founding act has no managing role
 # above it, so the root charter is authored by this constant rather than by a

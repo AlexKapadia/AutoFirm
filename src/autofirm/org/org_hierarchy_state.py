@@ -35,7 +35,7 @@ from __future__ import annotations
 from autofirm.org.org_identifiers import RoleId
 from autofirm.org.role_charter_contract import RoleCharter
 
-__all__ = ["OrgHierarchy", "HierarchyInvariantError"]
+__all__ = ["HierarchyInvariantError", "OrgHierarchy"]
 
 
 class HierarchyInvariantError(Exception):
@@ -53,6 +53,7 @@ class OrgHierarchy:
     __slots__ = ("_roles",)
 
     def __init__(self, roles: dict[RoleId, RoleCharter]) -> None:
+        """Build and fully validate a hierarchy from a role-id -> charter map."""
         self._roles = dict(roles)
         self._validate()  # fail-closed: a malformed tree is refused at construction
 
@@ -77,7 +78,9 @@ class OrgHierarchy:
         if len(roots) != 1:
             # fail-closed: an org must have exactly one apex; 0 roots = no founder,
             # >1 roots = a forest, neither is a valid single-rooted hierarchy.
-            raise HierarchyInvariantError(f"hierarchy must have exactly one root, found {len(roots)}")
+            raise HierarchyInvariantError(
+                f"hierarchy must have exactly one root, found {len(roots)}"
+            )
         for charter in self._roles.values():
             mgr = charter.manager_id
             if mgr is None:
@@ -108,6 +111,7 @@ class OrgHierarchy:
     # --------------------------------------------------------------------- #
 
     def __contains__(self, role_id: RoleId) -> bool:
+        """Return True if ``role_id`` is a live role in this hierarchy."""
         return role_id in self._roles
 
     def charter(self, role_id: RoleId) -> RoleCharter:

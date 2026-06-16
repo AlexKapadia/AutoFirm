@@ -31,7 +31,7 @@ Security / compliance invariants upheld
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import NewType, Protocol, runtime_checkable
 
 __all__ = [
@@ -85,6 +85,7 @@ class FrozenClock:
     """
 
     def __init__(self, start: datetime, step_seconds: float = 0.0) -> None:
+        """Seed the clock at ``start`` (must be tz-aware), advancing ``step_seconds``/call."""
         # fail-closed: a naive datetime would make 'now' ambiguous across zones;
         # refuse it so every audit timestamp is unambiguously UTC (§3.11).
         if start.tzinfo is None:
@@ -96,8 +97,6 @@ class FrozenClock:
         """Return the current instant, then advance by ``step_seconds``."""
         value = self._current
         if self._step_seconds:
-            from datetime import timedelta
-
             self._current = self._current + timedelta(seconds=self._step_seconds)
         return value
 
@@ -111,6 +110,7 @@ class SequentialIdGenerator:
     """
 
     def __init__(self, start: int = 0) -> None:
+        """Seed the monotonic counter at ``start`` (must be >= 0, fail-closed)."""
         if start < 0:
             raise ValueError("id counter start must be >= 0")  # fail-closed
         self._counter = start

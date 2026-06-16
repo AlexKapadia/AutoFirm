@@ -52,7 +52,9 @@ class AuthorshipError(Exception):
     """Internal signal that a charter's authorship/manager is invalid (fail-closed)."""
 
 
-def append_event(state: OrgState, clock: Clock, kind: OrgEventKind, subject: RoleId, detail: str) -> OrgState:
+def append_event(
+    state: OrgState, clock: Clock, kind: OrgEventKind, subject: RoleId, detail: str
+) -> OrgState:
     """Return a NEW state with one audit event appended (gapless, append-only).
 
     The event's seq is the trail's next seq (== current length), so the log is
@@ -93,15 +95,19 @@ def reject_if_authorship_invalid(state: OrgState, charter: RoleCharter) -> None:
     if charter.is_root():
         raise AuthorshipError("only found() may create a root role")
     mgr = charter.manager_id
-    if mgr not in state.hierarchy:
+    if mgr is None or mgr not in state.hierarchy:
         # fail-closed: cannot report to a manager that does not exist (no orphan).
+        # (is_root() above already implies mgr is not None; the explicit check
+        # narrows the Optional type and is defence-in-depth against a future edit.)
         raise AuthorshipError(f"manager {mgr!r} does not exist")
     if charter.authored_by != mgr:
         # fail-closed: a role's spec is OWNED & AUTHORED by its managing role.
         raise AuthorshipError("spec must be authored by the managing role")
 
 
-def claim_artifacts(ownership: ArtifactOwnershipLedger, charter: RoleCharter) -> ArtifactOwnershipLedger:
+def claim_artifacts(
+    ownership: ArtifactOwnershipLedger, charter: RoleCharter
+) -> ArtifactOwnershipLedger:
     """Claim every artifact in ``charter`` for its role (single-writer, fail-closed).
 
     Iterates in sorted order for deterministic claim sequencing; the ledger refuses
