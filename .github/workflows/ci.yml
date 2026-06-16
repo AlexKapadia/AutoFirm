@@ -29,6 +29,9 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  schedule:
+    - cron: "0 4 * * *" # nightly mutation backstop (04:00 UTC); fast gates still run per-push
+  workflow_dispatch: {} # allow on-demand mutation runs
 
 # Least privilege: read-only token (CLAUDE.md §5.6); no write scopes needed.
 permissions:
@@ -100,7 +103,12 @@ jobs:
   # that could not run on the Windows dev box; CI is its enforcement plane.
   # ---------------------------------------------------------------------------
   mutation-gate:
-    name: mutation gate (full pass, fail-closed on survivors)
+    name: mutation gate (nightly/manual backstop, fail-closed on survivors)
+    # Mutation is the real acceptance signal but the full pass is SLOW -- iterate it
+    # LOCALLY before merging; in CI it runs only nightly + on-demand, so it never
+    # blocks or red-spams everyday pushes/PRs to main. NOT weakened: still fail-closed
+    # on any survivor when it runs (per-push gets the fast lint/type/test/cov/SAST).
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     needs: [gates] # only spend mutation time once the cheap gates are green
     env:

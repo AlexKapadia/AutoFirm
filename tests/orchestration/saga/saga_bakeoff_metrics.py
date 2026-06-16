@@ -121,7 +121,7 @@ def measure_orphans(adapter: RuntimeAdapter) -> int:
 
 async def _drive_in_loop(saga, adapter: RuntimeAdapter) -> None:  # type: ignore[no-untyped-def]
     """Run a saga's async core on the already-running asyncio loop (orphan probe)."""
-    from autofirm.orchestration.saga.saga_executor import _drive  # noqa: PLC0415
+    from autofirm.orchestration.saga.saga_executor import _drive
 
     await _drive(saga, adapter, make_checkpoint("g"))
 

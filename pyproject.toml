@@ -90,7 +90,7 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 # Tests may omit module/function docstrings and use assert-heavy bodies.
-"tests/**" = ["D100", "D101", "D102", "D103", "D104", "PLR2004"]
+"tests/**" = ["D100", "D101", "D102", "D103", "D104", "PLR2004", "PLC0415"]
 
 # -----------------------------------------------------------------------------
 # Mypy — strict type gate (ADR-001 §1, §3 step 1; CLAUDE.md §5.7).
@@ -157,7 +157,7 @@ tests_dir = "tests/"
 # separate step); -x stops at the first failure so a killed mutant returns fast.
 # The per-test `timeout` ini option (pytest.ini_options) bounds infinite-loop
 # mutants so the mutation gate cannot hang on a mutated loop bound.
-runner = "python -m pytest -x -q -p no:cacheprovider --no-header --rootdir=. -o addopts='' -o pythonpath=src tests/orchestration/saga"
+runner = "python -m pytest -x -q -p no:cacheprovider --no-header --rootdir=. -o addopts='' -o pythonpath=src tests"
 
 # -----------------------------------------------------------------------------
 # Bandit — Python SAST (ADR-001 §4). Excludes tests (assert is expected there).

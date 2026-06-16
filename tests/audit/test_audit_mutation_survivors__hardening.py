@@ -29,13 +29,13 @@ import pytest
 from pydantic import ValidationError
 
 from autofirm.audit import bakeoff_measurement_harness as harness
+from autofirm.audit.audit_record_contract import _HASH_BYTES as REEXPORTED_HASH_BYTES
 from autofirm.audit.audit_record_contract import (
     AuditOutcome,
     EntityRef,
     SignedTreeHead,
     canonical_bytes,
 )
-from autofirm.audit.audit_record_contract import _HASH_BYTES as REEXPORTED_HASH_BYTES
 from autofirm.audit.bakeoff_measurement_harness import (
     _MIN_TRUNCATION_TREE,
     WinnerMeasurement,
@@ -50,7 +50,6 @@ from autofirm.audit.candidate_b_merkle_tree_hash import (
 from autofirm.audit.rfc6962_hashing import HASH_BYTES
 from autofirm.audit.tamper_attack_classes import TamperAttackClass
 from tests.audit.synthetic_audit_records import make_record, synthetic_digest
-
 
 # =========================================================================== #
 # audit_record_contract -- canonical encoding KNOWN-ANSWER (kills L142-155)    #
