@@ -33,7 +33,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
-__all__ = ["DeliverableKind", "FiledDocumentRecord", "SLUG_PATTERN"]
+__all__ = ["SLUG_PATTERN", "DeliverableKind", "FiledDocumentRecord"]
 
 # Identity fields that become folder/file path segments must be safe slugs: only
 # lowercase letters, digits, hyphen and underscore. This blocks path traversal,
