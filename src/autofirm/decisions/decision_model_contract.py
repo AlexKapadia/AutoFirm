@@ -49,7 +49,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from enum import StrEnum
-from typing import Annotated, Generic, TypeVar
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
 
@@ -195,10 +195,7 @@ class DecisionInputs(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-_InputsT = TypeVar("_InputsT", bound=DecisionInputs)
-
-
-class DecisionModel(ABC, Generic[_InputsT]):
+class DecisionModel[InputsT: DecisionInputs](ABC):
     """Abstract base: an owned, deterministic model from inputs to a recommendation.
 
     A model is identified by a stable ``model_id`` and owned by a ``role_id`` (the
@@ -250,7 +247,7 @@ class DecisionModel(ABC, Generic[_InputsT]):
         """
 
     @abstractmethod
-    def compute(self, inputs: _InputsT) -> DecisionOutput:
+    def compute(self, inputs: InputsT) -> DecisionOutput:
         """Deterministically turn validated ``inputs`` into a :class:`DecisionOutput`.
 
         Pure: no clock, randomness, or I/O. Identical inputs MUST yield an
