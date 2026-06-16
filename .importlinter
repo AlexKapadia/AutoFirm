@@ -1,0 +1,24 @@
+# =============================================================================
+# import-linter contract (ADR-001 §5; CLAUDE.md §3.10).
+# Enforces, NOT by convention but by a failing CI gate, that runtime packages
+# (src/autofirm/**) may NEVER import analysis-only plotting/diagram/eval libs.
+# Those libs are permitted ONLY under evidence/ (the analysis extra).
+# Fail-closed posture mirrors the A8.2 RLS gate.
+# =============================================================================
+
+[importlinter]
+root_packages =
+    autofirm
+
+[importlinter:contract:runtime-must-not-import-analysis-libs]
+name = Runtime code must not import analysis-only libraries
+type = forbidden
+source_modules =
+    autofirm
+forbidden_modules =
+    matplotlib
+    plotly
+    graphviz
+    cairosvg
+    scipy
+    statsmodels

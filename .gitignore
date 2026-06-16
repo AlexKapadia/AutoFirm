@@ -1,3 +1,9 @@
+# --- PRIVATE sensitive-data root (NEVER commit/deploy — ADR-002) ---
+# The entire .autofirm/ workspace holds per-company finance models, client
+# artifacts, real financials, PII, secrets, and machine-local saga/runtime state.
+# It is structurally fenced out of git so it can never reach GitHub or a deploy.
+.autofirm/
+
 # --- Secrets & environment (NEVER commit) ---
 .env
 .env.*
@@ -5,11 +11,8 @@
 *.key
 *.pem
 secrets/
-.autofirm/secrets/
 
 # --- Runtime state, logs, audit spool (machine-local) ---
-.autofirm/state/
-.autofirm/runtime/
 logs/
 *.log
 
@@ -33,6 +36,10 @@ venv/
 htmlcov/
 .coverage
 .coverage.*
+mutants/
+*.egg-info/
+.mutmut-cache
+.hypothesis/
 
 # --- OS / IDE ---
 .DS_Store
