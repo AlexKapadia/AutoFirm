@@ -9,6 +9,9 @@
 [importlinter]
 root_packages =
     autofirm
+# Required because the forbidden contracts name EXTERNAL packages (the analysis
+# and artifact/OOXML libs); without this the graph omits third-party edges.
+include_external_packages = True
 
 [importlinter:contract:runtime-must-not-import-analysis-libs]
 name = Runtime code must not import analysis-only libraries
@@ -22,3 +25,29 @@ forbidden_modules =
     cairosvg
     scipy
     statsmodels
+
+# Artifact/output-tier libs (openpyxl/python-pptx/python-docx) may be imported
+# ONLY by autofirm.artifacts (CLAUDE.md §3.10). Every OTHER runtime package is a
+# source here, so the deterministic core stays free of heavy OOXML deps; a
+# violation fails the gate rather than being caught by review.
+[importlinter:contract:core-runtime-must-not-import-artifact-libs]
+name = Core runtime (non-artifacts) must not import artifact/OOXML libraries
+type = forbidden
+source_modules =
+    autofirm.access
+    autofirm.audit
+    autofirm.comms
+    autofirm.decisions
+    autofirm.finance
+    autofirm.flow
+    autofirm.foundation
+    autofirm.frontdoor
+    autofirm.heartbeat
+    autofirm.memory
+    autofirm.orchestration
+    autofirm.org
+    autofirm.substrate
+forbidden_modules =
+    openpyxl
+    pptx
+    docx
