@@ -114,14 +114,55 @@ here and in git history (`experiment/concurrency-runtime` M2-M4).
   run on the winner's saga-core (`saga_executor.py` + `saga_model.py`) via the
   repo's `scripts/run_mutation_gate.py`. See §7 for the score / platform note.
 
-## 7. Mutation score (winner saga-core)
+## 7. Mutation score (winner saga-core) — 0 survivors
 
-Run via the fail-closed repo gate on the AnyIO winner's core modules. The
-Windows mutmut-2.x stall on infinite-loop mutants is a known repo limitation
-(documented in the E5 results + `run_mutation_gate.py`); where a loop-bound mutant
-would busy-spin on native Windows, enforcement is the **Linux CI mutation plane**.
-Numbers and any provably-equivalent mutants are recorded inline in §7 of this doc
-at gate time (see commit M5 body for the run output).
+Run via `mutmut` (2.5.1) on the AnyIO winner's saga-core, native Windows,
+`PYTHONUTF8=1`, Python 3.13.3. The saga modules use **only bounded `for` loops**
+(no `while`), so the Windows infinite-loop-mutant stall (the audit-module
+limitation in the E5 results) **does not apply here** — mutmut completes locally.
+
+| Winner module | Mutants | Killed | Survivors | Score |
+|---|---|---|---|---|
+| `saga_executor.py` | 25 | 25 | **0** | 100% |
+| `saga_model.py` | 49 | 49 | **0** | 100% |
+| `runtimes/anyio_adapter.py` | 9 | 9 | **0** | 100% |
+| **Total saga-core** | **83** | **83** | **0** | **100%** |
+
+**Survivors hunted then killed (genuine test gaps, not equivalents):**
+- `StepContext.already_applied=True/False` (executor) — the flag handed to user
+  code; pinned by a forward-sees-False / compensator-sees-True test.
+- `SagaState` member string values, the fail-closed `ValueError` messages, and the
+  adapter `name` / type-guard message — killed with **exact-string** asserts
+  (`str(exc) == ...`), since `pytest.raises(match=)` is a regex *search* a whole-
+  string-wrap mutant (`"msg"`→`"XXmsgXX"`) survives.
+- `frozen=True`/`slots=True` on every model dataclass — killed by a
+  `FrozenInstanceError`-on-write test + a `not hasattr(obj, "__dict__")` test
+  (immutability = the append-only/no-rewrite invariant, A6).
+- `CancelScope(shield=True)`→`shield=False` (adapter) — killed by a **chaos test**:
+  a boundary-cancel saga whose compensators hit a real `anyio` checkpoint mid-
+  rollback; without the shield the fired cancel interrupts compensation and the
+  saga *falsely COMMITs* — the exact fail-closed violation the shield prevents.
+- The `@dataclass`-decorator-removal and `seen=None` mutants initially read as
+  "survived" because a broken `__init__` raised at **collection** time (pytest
+  exit-2, which mutmut mis-scores); moving the constructions into test **bodies**
+  turns them into clean exit-1 failures that mutmut scores as kills.
+
+**Justified equivalent mutants (`# pragma: no mutate`, CLAUDE.md §3.6):** the
+`_T = TypeVar("_T")` line (adapter) and the `ForwardAction`/`Compensator` type
+aliases (model). Under `from __future__ import annotations` every annotation is a
+string and is never evaluated at runtime, so mutating an alias value (→`None`) or a
+forward-ref's text is provably runtime-equivalent — no behaviour a test can observe.
+
+> **Scope note (acceptance bar).** This branch is based on old `main` (`f0c2565`),
+> which still carries the inherited audit-module survivors being fixed separately;
+> a full-repo mutation pass would fail on those regardless of the saga work. The M5
+> acceptance bar is the **saga modules at 0 local survivors** + all local gates
+> green (below). After the audit fix lands on `main`, this branch is rebased and
+> full CI runs before merge.
+
+**Local gates (2026-06-16, `PYTHONUTF8=1`, Python 3.13.3):** ruff ✓ · mypy
+`--strict` ✓ (19 files) · bandit ✓ (0 findings, `-r src -c pyproject.toml`) ·
+pytest 157 passed · coverage **100% line / 100% branch** (gate ≥90/85).
 
 ## 8. Reproduce
 
