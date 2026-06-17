@@ -60,7 +60,7 @@ class QualityGate(StrEnum):
     WCAG_2_2_AA = "WCAG_2_2_AA"  # accessibility: automated + manual
     RESPONSIVE = "RESPONSIVE"  # correct at every breakpoint
     CORE_WEB_VITALS = "CORE_WEB_VITALS"  # LCP<=2.5s / CLS<=0.1 / INP<=200ms @p75
-    TOKEN_ADHERENCE = "TOKEN_ADHERENCE"  # no hard-coded values (lint)
+    TOKEN_ADHERENCE = "TOKEN_ADHERENCE"  # nosec B105 -- UI gate enum member, not a credential; "no hard-coded values" check
     STATE_COVERAGE = "STATE_COVERAGE"  # loading/empty/error/edge all present
     CROSS_BROWSER = "CROSS_BROWSER"  # works across target browsers
     NOTHING_STATIC = "NOTHING_STATIC"  # every control wired to real behaviour

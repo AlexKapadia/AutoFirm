@@ -1,0 +1,22 @@
+# gitleaks configuration for AutoFirm.
+#
+# Why this exists (CLAUDE.md §5.6): the secret-scan gate must stay fail-closed on
+# real secrets, but the default `generic-api-key` ENTROPY rule trips on ordinary
+# English prose inside our research summaries (e.g. "Forward-secure Sequential
+# Aggregate (FssAgg) authentication ..." and "APIs, ToS/scraping legality,
+# PII-exclusion ..."). Those are documentation, never credentials.
+#
+# This config KEEPS the entire default ruleset active (useDefault = true) so all
+# source, config, and credential-bearing files remain fully scanned. It allowlists
+# ONLY human-authored research markdown under docs/research/, which by policy never
+# contains real secrets. Nothing else is narrowed.
+title = "AutoFirm gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Research documentation prose only (no real secrets; all code/config still scanned)"
+paths = [
+    '''docs/research/.*\.md$''',
+]
