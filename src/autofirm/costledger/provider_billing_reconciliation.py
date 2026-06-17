@@ -65,7 +65,11 @@ class ProviderBillingExport(BaseModel):
     credits: Money  # itemised credits/promos the invoice nets out (>= 0 magnitude)
 
     @field_validator("provider")
-    @classmethod
+    @classmethod  # pragma: no mutate -- pydantic-v2 field_validators behave identically
+    # with or without @classmethod (verified: removing it still raises the same
+    # ValidationError), so a mutant deleting it is PROVABLY EQUIVALENT, not an untested
+    # line. Excluding a proven equivalent keeps the mutation score honest (same approach
+    # as foundation/money/exact_money_arithmetic.py's documented equivalent-mutant pragma).
     def _provider_non_empty(cls, value: str) -> str:
         # fail-closed: an export with no provider cannot be matched to a ledger total.
         if not value.strip():

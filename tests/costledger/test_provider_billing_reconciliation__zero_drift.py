@@ -9,11 +9,14 @@ reflected; cross-currency exports fail closed; a missing export is surfaced as d
 from decimal import Decimal
 
 import pytest
+from pydantic import ValidationError
 
 from autofirm.costledger.append_only_cost_ledger import AppendOnlyCostLedger
 from autofirm.costledger.exact_cost_computation import compute_exact_cost
 from autofirm.costledger.provider_billing_reconciliation import (
     ProviderBillingExport,
+    ProviderReconciliation,
+    ReconciliationReport,
     reconcile_against_export,
 )
 from autofirm.costledger.spend_rollup_views import rollup_by_provider
@@ -126,10 +129,70 @@ def test_cross_currency_export_fails_closed() -> None:
             provider="openai", gross_total=money("3.00", "EUR"), credits=money("0", "EUR")
         )
     }
+    with pytest.raises(ValueError) as exc:
+        reconcile_against_export(ledger.records(), exports, currency="USD")
+    # Exact message so a string mutant on the fail-closed text is killed.
+    assert str(exc.value) == "export for openai is not in USD (no cross-currency drift)"
+
+
+def test_export_with_wrong_credits_currency_also_fails_closed() -> None:
+    # Independently exercise the CREDITS side of the currency guard (the `or` branch),
+    # so a mutant turning `or` into `and` is killed: here gross matches USD but
+    # credits are EUR — still a cross-currency export, still refused.
+    ledger = AppendOnlyCostLedger()
+    ledger = _row(ledger, 0, ModelProvider.OPENAI, 1_000_000, "USD")
+    exports = {
+        "openai": ProviderBillingExport(
+            provider="openai", gross_total=money("3.00", "USD"), credits=money("0", "EUR")
+        )
+    }
     with pytest.raises(ValueError, match="no cross-currency drift"):
         reconcile_against_export(ledger.records(), exports, currency="USD")
 
 
 def test_export_provider_must_be_non_empty() -> None:
-    with pytest.raises(ValueError, match="non-empty"):
+    with pytest.raises(ValidationError) as exc:
         ProviderBillingExport(provider="  ", gross_total=money("1"), credits=money("0"))
+    # Assert the EXACT validator message (pydantic exposes it as the error 'msg'), so a
+    # string-literal mutant that wraps/edits the text is killed -- a substring check
+    # would let a `XX..XX`-wrapped mutant survive, so we compare the message exactly.
+    errors = exc.value.errors()
+    assert any(e["msg"] == "Value error, export provider must be non-empty" for e in errors)
+
+
+def _recon(provider: str = "openai") -> ProviderReconciliation:
+    return ProviderReconciliation(
+        provider=provider,
+        ledger_gross=money("3.00"),
+        provider_gross=money("3.00"),
+        gross_drift=money("0.00"),
+        credits=money("0.00"),
+        net_after_credits=money("3.00"),
+    )
+
+
+def test_report_classes_are_frozen() -> None:
+    # Immutability is a contract — kills a `frozen=True`->`False` config mutant.
+    export = ProviderBillingExport(
+        provider="openai", gross_total=money("1"), credits=money("0")
+    )
+    with pytest.raises(ValidationError):
+        export.provider = "x"  # type: ignore[misc]
+    recon = _recon()
+    with pytest.raises(ValidationError):
+        recon.provider = "x"  # type: ignore[misc]
+    report = ReconciliationReport(per_provider=(recon,))
+    with pytest.raises(ValidationError):
+        report.per_provider = ()  # type: ignore[misc]
+
+
+def test_report_classes_carry_money_fields_arbitrary_types_allowed() -> None:
+    # Money is an arbitrary (non-pydantic) type; constructing these models proves
+    # arbitrary_types_allowed is set — kills the `True`->`False` config mutant
+    # (which would make construction with a Money field raise).
+    export = ProviderBillingExport(
+        provider="openai", gross_total=money("9.99"), credits=money("1.00")
+    )
+    assert export.gross_total == money("9.99")
+    recon = _recon()
+    assert recon.ledger_gross == money("3.00")

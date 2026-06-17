@@ -164,10 +164,15 @@ def test_per_1k_vs_per_1m_no_1000x_error() -> None:
 
 
 def test_unit_divisor_zero_or_negative_fails_closed() -> None:
-    with pytest.raises(ValueError, match="unit_divisor must be > 0"):
+    # Assert the EXACT, full message (start-to-end anchored) so a string mutant that
+    # prepends/appends to the error text is killed, not merely substring-matched.
+    expected = "unit_divisor must be > 0 (tokens per quoted rate)"
+    with pytest.raises(ValueError) as exc0:
         compute_exact_cost(make_usage(), make_prices(), unit_divisor=0)
-    with pytest.raises(ValueError, match="unit_divisor must be > 0"):
+    assert str(exc0.value) == expected
+    with pytest.raises(ValueError) as excneg:
         compute_exact_cost(make_usage(), make_prices(), unit_divisor=-1)
+    assert str(excneg.value) == expected
 
 
 # ----------------------- tiered pricing (Gemini 200k) ----------------------- #

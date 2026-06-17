@@ -12,7 +12,10 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from autofirm.costledger.append_only_cost_ledger import AppendOnlyCostLedger
+from autofirm.costledger.append_only_cost_ledger import (
+    AppendOnlyCostLedger,
+    CostLedgerError,
+)
 from autofirm.costledger.exact_cost_computation import _effective_input_output_rates
 from autofirm.costledger.provider_usage_adapters import UsageParseError, parse_openai_usage
 from autofirm.costledger.usage_cost_record import PriceVector, TokenUsage
@@ -62,6 +65,33 @@ def test_tier_half_spec_guard_raises_at_runtime() -> None:
         input_price_above_threshold=None,  # ...but rates missing (half-spec)
         output_price_above_threshold=None,
     )
+    with pytest.raises(ValueError) as exc:
+        _effective_input_output_rates(make_usage(input_tokens=200), half)
+    assert str(exc.value) == "tiered price vector missing an above-threshold rate"
+
+
+@pytest.mark.parametrize(
+    ("in_above", "out_above"),
+    [
+        (Decimal("0.003"), None),  # only OUTPUT rate missing
+        (None, Decimal("0.004")),  # only INPUT rate missing
+    ],
+)
+def test_tier_half_spec_guard_each_side_independently(in_above, out_above) -> None:
+    # Exactly ONE above-rate missing distinguishes `or` from `and` in the guard:
+    # with both-None, `or` and `and` both raise, so an `or`->`and` mutant survives.
+    # With ONE None, `and` would NOT raise (wrong rate priced) but `or` MUST raise.
+    half = PriceVector.model_construct(
+        currency="USD",
+        input_price=Decimal("0.001"),
+        output_price=Decimal("0.002"),
+        cache_read_price=Decimal("0"),
+        cache_write_price=Decimal("0"),
+        reasoning_price=Decimal("0"),
+        tier_threshold_tokens=100,
+        input_price_above_threshold=in_above,
+        output_price_above_threshold=out_above,
+    )
     with pytest.raises(ValueError, match="missing an above-threshold rate"):
         _effective_input_output_rates(make_usage(input_tokens=200), half)
 
@@ -96,6 +126,44 @@ def test_negative_above_threshold_tier_price_refused() -> None:
             input_price_above_threshold="-0.001",
             output_price_above_threshold="0.002",
         )
+
+
+def test_ledger_tamper_message_is_exact() -> None:
+    # Exact full message so a string-literal mutant on the fail-closed text is killed.
+    ledger = AppendOnlyCostLedger()
+    rec = ledger.seal_new(
+        correlation_id=corr(1), requesting_role_id=role("r"), use_case=use_case("uc"),
+        served_by=make_model(), usage=make_usage(), unit_prices=make_prices(),
+        cost=money("0.01"), cost_source="price_map_computed",
+        price_catalog_version="1.0.0", recorded_at=FIXED_INSTANT,
+    )
+    forged = rec.model_copy(update={"cost": money("9.99")})  # stale hash, new cost
+    with pytest.raises(CostLedgerError) as exc:
+        AppendOnlyCostLedger((forged,))
+    assert str(exc.value) == "cost ledger chain failed verification (tamper detected)"
+
+
+def test_ledger_broken_chain_message_is_exact() -> None:
+    ledger = AppendOnlyCostLedger()
+    first = ledger.seal_new(
+        correlation_id=corr(1), requesting_role_id=role("r"), use_case=use_case("uc"),
+        served_by=make_model(), usage=make_usage(), unit_prices=make_prices(),
+        cost=money("0.01"), cost_source="price_map_computed",
+        price_catalog_version="1.0.0", recorded_at=FIXED_INSTANT,
+    )
+    ledger = ledger.append(first)
+    # `first` is chained over genesis, but the ledger tip is now `first`'s hash.
+    with pytest.raises(CostLedgerError) as exc:
+        ledger.append(first)
+    assert str(exc.value) == "record prev_hash does not match the ledger tip (broken chain)"
+
+
+def test_unit_divisor_invalid_message_is_exact_in_computation() -> None:
+    from autofirm.costledger.exact_cost_computation import compute_exact_cost
+
+    with pytest.raises(ValueError) as exc:
+        compute_exact_cost(make_usage(), make_prices(), unit_divisor=0)
+    assert str(exc.value) == "unit_divisor must be > 0 (tokens per quoted rate)"
 
 
 def test_zero_token_call_costs_zero_exactly() -> None:
