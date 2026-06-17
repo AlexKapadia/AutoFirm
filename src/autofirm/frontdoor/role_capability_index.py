@@ -40,9 +40,17 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from autofirm.org.org_identifiers import RoleId
 from autofirm.org.org_state import OrgState
+
+if TYPE_CHECKING:
+    # Annotation-only import. The capabilities package imports
+    # extract_capability_keywords from THIS module (the single keyword
+    # derivation), so a runtime import here would form an import cycle; the
+    # classmethod imports LiveCapabilityRegistry/CapabilityId lazily instead.
+    from autofirm.capabilities.live_capability_registry import LiveCapabilityRegistry
 
 __all__ = [
     "PUBLIC_CLEARANCE",
@@ -152,6 +160,57 @@ class RoleCapabilityIndex:
                     role_id=role_id,
                     title=charter.title,
                     keywords=extract_capability_keywords(charter.responsibilities),
+                    # deny-by-default: un-granted roles become unreachable, not public.
+                    required_clearance=required_clearances.get(
+                        role_id, UNREACHABLE_CLEARANCE
+                    ),
+                    is_triage=(role_id == triage_role_id),
+                )
+            )
+        return cls(tuple(capabilities))
+
+    @classmethod
+    def from_capability_registry(
+        cls,
+        registry: LiveCapabilityRegistry,
+        *,
+        triage_role_id: RoleId,
+        required_clearances: Mapping[RoleId, str],
+    ) -> RoleCapabilityIndex:
+        """Derive a capability index from the DYNAMIC live capability registry.
+
+        This is the W4 cutover seam: the routable space is now read from the
+        capability growth log's replayed current set (a capability per live
+        descriptor) rather than enumerated from a static tuple. Each descriptor's
+        own keyword surface — itself derived via :func:`extract_capability_keywords`
+        at projection time — becomes the routing surface, so the registry and the
+        router share one keyword derivation and cannot drift.
+
+        Clearance handling is identical to :meth:`from_org_state`: a role absent
+        from ``required_clearances`` gets :data:`UNREACHABLE_CLEARANCE` —
+        deny-by-default / least-privilege (§5.6). Fail-closed: the triage role must
+        be a live capability in the registry, else the router would have no
+        fail-closed destination.
+        """
+        # Lazy import breaks the frontdoor<->capabilities import cycle (the
+        # capabilities projection imports extract_capability_keywords from here).
+        from autofirm.capabilities.capability_descriptor import (  # noqa: PLC0415
+            CapabilityId,
+        )
+
+        descriptors = registry.descriptors()
+        if registry.descriptor_for(CapabilityId(str(triage_role_id))) is None:
+            # fail-closed: a triage target that is not a live capability would leave
+            # unmatched requests with nowhere to go — refuse to build such an index.
+            raise ValueError(f"triage role {triage_role_id!r} is not a live capability")
+        capabilities: list[RoleCapability] = []
+        for descriptor in descriptors:  # already in deterministic capability-id order
+            role_id = descriptor.owning_role_id
+            capabilities.append(
+                RoleCapability(
+                    role_id=role_id,
+                    title=descriptor.name,
+                    keywords=descriptor.keywords,
                     # deny-by-default: un-granted roles become unreachable, not public.
                     required_clearance=required_clearances.get(
                         role_id, UNREACHABLE_CLEARANCE

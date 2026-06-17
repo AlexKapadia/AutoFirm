@@ -84,7 +84,7 @@ def test_fail_closed_guard_refuses_malformed_pricing(
         company_slug=scenario.slug, corpus_dir=corpus_dir
     )
     built = build_company(scenario, workspace)
-    checks = operate_company(scenario, built.org, built.librarian, workspace)
+    checks = operate_company(scenario, built.recording_org, built.librarian, workspace)
     guard = next(c for c in checks if c.feature is FeatureName.FAIL_CLOSED_GUARD)
     assert guard.status is FeatureStatus.PASSED
     assert guard.evidence["refused"] == "True"
@@ -99,7 +99,7 @@ def test_front_door_artifact_and_flow_reach_real_outcomes(
         company_slug=scenario.slug, corpus_dir=corpus_dir
     )
     built = build_company(scenario, workspace)
-    operate_checks = operate_company(scenario, built.org, built.librarian, workspace)
+    operate_checks = operate_company(scenario, built.recording_org, built.librarian, workspace)
     checks = {c.feature: c for c in operate_checks}
 
     front = checks[FeatureName.FRONT_DOOR_ROUTING]

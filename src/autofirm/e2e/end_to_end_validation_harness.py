@@ -71,7 +71,9 @@ class EndToEndValidationHarness:
         self._workspaces.append(workspace)
 
         built = build_company(scenario, workspace)
-        operate_checks = operate_company(scenario, built.org, built.librarian, workspace)
+        operate_checks = operate_company(
+            scenario, built.recording_org, built.librarian, workspace
+        )
 
         result = ScenarioResult(
             company_slug=scenario.slug,

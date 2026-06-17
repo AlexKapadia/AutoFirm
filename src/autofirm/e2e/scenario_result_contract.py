@@ -37,6 +37,7 @@ class FeatureName(StrEnum):
 
     ORG_FOUNDED = "org_founded"  # org engine stood the company up
     GAP_AUTO_CREATE_HIRE = "gap_auto_create_hire"  # gap -> auto-create + hire a role
+    CAPABILITY_REGISTRY_GREW = "capability_registry_grew"  # dynamic registry grew on hires
     COMMS_WIRED = "comms_wired"  # inter-agent message bus delivered a message
     DOCUMENTS_FILED = "documents_filed"  # document store catalogued a deliverable
     FINANCE_STATEMENTS = "finance_statements"  # 3 statements articulated + tie

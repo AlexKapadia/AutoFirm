@@ -24,6 +24,7 @@ import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from autofirm.capabilities.capability_recording_org import CapabilityRecordingOrg
 from autofirm.comms.append_only_audit_sink import InMemoryMessageAuditSink
 from autofirm.comms.dynamic_agent_registry import DynamicAgentRegistry, MessageHandler
 from autofirm.comms.injectable_delivery_clock import ManualClock
@@ -48,7 +49,6 @@ from autofirm.org.org_identifiers import (
     RoleId,
     SequentialIdGenerator,
 )
-from autofirm.org.org_lifecycle_engine import DynamicOrg
 from autofirm.org.org_lifecycle_events import OrgEventKind
 from autofirm.org.role_charter_contract import ROOT_AUTHOR, RoleCharter
 
@@ -62,13 +62,15 @@ class BuiltCompany:
     """The live, stood-up company plus the checks proving it came up.
 
     Args:
-        org: The founded org with the auto-created role hired in (the live state
-            the operate flow routes its front-door questions over).
+        recording_org: The org grown through the capability-recording wrapper, so
+            its growth log and live capability registry track every hire/auto-create
+            automatically (the dynamic registry that replaced the static list).
         librarian: The document store the company files deliverables into.
-        checks: The build-phase :class:`FeatureCheck` verdicts (org/gap/comms/docs).
+        checks: The build-phase :class:`FeatureCheck` verdicts
+            (org / gap / capability-registry-growth / comms / docs).
     """
 
-    org: DynamicOrg
+    recording_org: CapabilityRecordingOrg
     librarian: LibrarianFilingService
     checks: tuple[FeatureCheck, ...]
 
@@ -76,19 +78,26 @@ class BuiltCompany:
 def build_company(
     scenario: PublicCompanyScenario, workspace: IsolatedCompanyWorkspace
 ) -> BuiltCompany:
-    """Stand ``scenario`` up in its isolated ``workspace`` and prove it came up."""
-    org, founded_check = _found_org(scenario)
-    org, gap_check = _auto_create_and_hire(org, scenario)
-    comms_check = _wire_comms_and_deliver_kickoff(org, scenario)
+    """Stand ``scenario`` up in its isolated ``workspace`` and prove it came up.
+
+    The company is grown through :class:`CapabilityRecordingOrg`, so the capability
+    registry GROWS as roles are founded + hired — the static feature list is gone.
+    """
+    rec, founded_check = _found_org(scenario)
+    rec, gap_check = _auto_create_and_hire(rec, scenario)
+    growth_check = _capability_registry_grew(rec, scenario)
+    comms_check = _wire_comms_and_deliver_kickoff(rec, scenario)
     librarian, docs_check = _file_founding_documents(scenario, workspace)
     return BuiltCompany(
-        org=org,
+        recording_org=rec,
         librarian=librarian,
-        checks=(founded_check, gap_check, comms_check, docs_check),
+        checks=(founded_check, gap_check, growth_check, comms_check, docs_check),
     )
 
 
-def _found_org(scenario: PublicCompanyScenario) -> tuple[DynamicOrg, FeatureCheck]:
+def _found_org(
+    scenario: PublicCompanyScenario,
+) -> tuple[CapabilityRecordingOrg, FeatureCheck]:
     """Found the org with a CEO root; assert the apex and its founding audit event."""
     root = RoleCharter(
         role_id=RoleId(CEO_ROLE),
@@ -100,14 +109,18 @@ def _found_org(scenario: PublicCompanyScenario) -> tuple[DynamicOrg, FeatureChec
         manager_id=None,
         authored_by=ROOT_AUTHOR,
     )
-    org = DynamicOrg.found(
-        root, FrozenClock(FOUNDING_EPOCH, step_seconds=1.0), SequentialIdGenerator()
+    rec = CapabilityRecordingOrg.found(
+        root,
+        FrozenClock(FOUNDING_EPOCH, step_seconds=1.0),
+        SequentialIdGenerator(),
+        FrozenClock(FOUNDING_EPOCH, step_seconds=1.0),
     )
+    org = rec.org
     came_up = (
         org.state.hierarchy.root_id() == RoleId(CEO_ROLE)
         and org.state.trail.kinds() == (OrgEventKind.ROLE_HIRED,)
     )
-    return org, FeatureCheck(
+    return rec, FeatureCheck(
         feature=FeatureName.ORG_FOUNDED,
         phase="build",
         status=FeatureStatus.PASSED if came_up else FeatureStatus.FAILED,
@@ -120,8 +133,8 @@ def _found_org(scenario: PublicCompanyScenario) -> tuple[DynamicOrg, FeatureChec
 
 
 def _auto_create_and_hire(
-    org: DynamicOrg, scenario: PublicCompanyScenario
-) -> tuple[DynamicOrg, FeatureCheck]:
+    rec: CapabilityRecordingOrg, scenario: PublicCompanyScenario
+) -> tuple[CapabilityRecordingOrg, FeatureCheck]:
     """Detect a capability gap and auto-create + hire the missing role.
 
     Proves the platform's automatic role-creation-on-gap: the CEO detects the
@@ -144,14 +157,14 @@ def _auto_create_and_hire(
         manager_id=RoleId(CEO_ROLE),
         authored_by=RoleId(CEO_ROLE),
     )
-    org = org.auto_create_on_gap(gap, new_role)
-    last = org.state.trail.events[-1]
+    rec = rec.auto_create_on_gap(gap, new_role)
+    last = rec.org.state.trail.events[-1]
     hired = (
-        RoleId(scenario.gap_role_id) in org.state.hierarchy
+        RoleId(scenario.gap_role_id) in rec.org.state.hierarchy
         and last.kind is OrgEventKind.ROLE_AUTO_CREATED
         and scenario.gap_rationale in last.detail  # the 'why' matches the gap
     )
-    return org, FeatureCheck(
+    return rec, FeatureCheck(
         feature=FeatureName.GAP_AUTO_CREATE_HIRE,
         phase="build",
         status=FeatureStatus.PASSED if hired else FeatureStatus.FAILED,
@@ -160,8 +173,41 @@ def _auto_create_and_hire(
     )
 
 
+def _capability_registry_grew(
+    rec: CapabilityRecordingOrg, scenario: PublicCompanyScenario
+) -> FeatureCheck:
+    """Prove the DYNAMIC capability registry GREW as roles were founded + hired.
+
+    The static feature list is gone: the routable capability set is now derived by
+    replay of the growth log, which the recording org extended automatically on each
+    transition. After founding the CEO and auto-creating the gap role, the live
+    registry must hold BOTH capabilities, the gap role's surface must match its
+    responsibilities, and the RFC-6962 growth chain must verify (tamper-evident).
+    """
+    registry = rec.live_registry()
+    descriptors = {str(d.capability_id): d for d in registry.descriptors()}
+    gap_role = scenario.gap_role_id
+    grew = (
+        CEO_ROLE in descriptors
+        and gap_role in descriptors
+        and len(descriptors[gap_role].keywords) > 0  # the gap role is routable
+        and rec.growth_log.verify()  # the growth chain is intact (tamper-evident)
+    )
+    return FeatureCheck(
+        feature=FeatureName.CAPABILITY_REGISTRY_GREW,
+        phase="build",
+        status=FeatureStatus.PASSED if grew else FeatureStatus.FAILED,
+        detail=f"capability registry grew to {len(descriptors)} live capabilities",
+        evidence={
+            "live_capabilities": str(len(descriptors)),
+            "growth_events": str(len(rec.growth_log.events())),
+            "chain_verified": str(rec.growth_log.verify()),
+        },
+    )
+
+
 def _wire_comms_and_deliver_kickoff(
-    org: DynamicOrg, scenario: PublicCompanyScenario
+    rec: CapabilityRecordingOrg, scenario: PublicCompanyScenario
 ) -> FeatureCheck:
     """Register the founded roles on the bus and deliver a CEO->role kickoff.
 
@@ -174,7 +220,7 @@ def _wire_comms_and_deliver_kickoff(
         received.append(envelope)
 
     registry = DynamicAgentRegistry()
-    for role_id in org.state.hierarchy.role_ids():
+    for role_id in rec.org.state.hierarchy.role_ids():
         is_target = str(role_id) == scenario.gap_role_id
         handler: MessageHandler = role_handler if is_target else _noop_handler
         registry.register_agent(str(role_id), handler)

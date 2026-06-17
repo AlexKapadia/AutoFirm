@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 
+from autofirm.capabilities.capability_recording_org import CapabilityRecordingOrg
 from autofirm.comms.append_only_audit_sink import InMemoryMessageAuditSink
 from autofirm.comms.dynamic_agent_registry import DynamicAgentRegistry
 from autofirm.comms.injectable_delivery_clock import ManualClock
@@ -40,23 +41,25 @@ from autofirm.frontdoor.role_capability_index import (
     RoleCapabilityIndex,
 )
 from autofirm.org.org_identifiers import FrozenClock, RoleId, SequentialIdGenerator
-from autofirm.org.org_lifecycle_engine import DynamicOrg
 
 
 def check_front_door_routing(
-    scenario: PublicCompanyScenario, org: DynamicOrg
+    scenario: PublicCompanyScenario, recording_org: CapabilityRecordingOrg
 ) -> FeatureCheck:
     """Route the owner's question over the live company; assert it reaches a handler.
 
-    Every founded role is public-cleared and given a live (silent) bus handler, so
-    the request is delivered to whichever role the router selects — a capable role
-    when the question matches one's vocabulary, else the CEO triage fallback. The
-    response must name a non-empty handler and be recorded in the provenance trail.
+    The routable space is read from the DYNAMIC live capability registry (replayed
+    from the growth log the company grew as it was built) — the static capability
+    enumeration is retired. Every founded role is public-cleared and given a live
+    (silent) bus handler, so the request is delivered to whichever role the router
+    selects — a capable role when the question matches one's vocabulary, else the
+    CEO triage fallback. The response must name a non-empty handler and be recorded.
     """
+    org = recording_org.org
     role_ids = tuple(str(rid) for rid in org.state.hierarchy.role_ids())
     clearances = {RoleId(rid): PUBLIC_CLEARANCE for rid in role_ids}
-    index = RoleCapabilityIndex.from_org_state(
-        org.state,
+    index = RoleCapabilityIndex.from_capability_registry(
+        recording_org.live_registry(),
         triage_role_id=RoleId(CEO_ROLE),
         required_clearances=clearances,
     )

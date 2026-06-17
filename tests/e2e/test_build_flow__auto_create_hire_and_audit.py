@@ -41,7 +41,7 @@ def test_gap_auto_creates_and_hires_the_missing_role(
 ) -> None:
     """The detected capability gap auto-creates + hires the scenario's role in the live org."""
     built, _ = _build(scenario, corpus_dir)
-    hierarchy = built.org.state.hierarchy
+    hierarchy = built.recording_org.org.state.hierarchy
     # The new role is genuinely present and reports to the CEO (a real org edge).
     assert RoleId(scenario.gap_role_id) in hierarchy
     assert hierarchy.charter(RoleId(scenario.gap_role_id)).manager_id == RoleId(CEO_ROLE)
@@ -53,7 +53,7 @@ def test_auto_create_event_carries_the_gap_rationale(
 ) -> None:
     """The auto-creation is audited as ROLE_AUTO_CREATED with the gap's 'why' (explainability)."""
     built, _ = _build(scenario, corpus_dir)
-    last = built.org.state.trail.events[-1]
+    last = built.recording_org.org.state.trail.events[-1]
     assert last.kind is OrgEventKind.ROLE_AUTO_CREATED
     # The audited 'why' must restate the exact gap rationale — why == what (§3.11).
     assert scenario.gap_rationale in last.detail
@@ -76,12 +76,13 @@ def test_founding_document_is_filed_under_the_isolated_store(
 def test_build_checks_are_all_green_and_named(
     scenario: PublicCompanyScenario, corpus_dir: Path
 ) -> None:
-    """The four build-phase features (org/gap/comms/docs) each pass and are present."""
+    """The build-phase features (org/gap/registry-growth/comms/docs) each pass + present."""
     built, _ = _build(scenario, corpus_dir)
     by_feature = {c.feature: c for c in built.checks}
     expected = {
         FeatureName.ORG_FOUNDED,
         FeatureName.GAP_AUTO_CREATE_HIRE,
+        FeatureName.CAPABILITY_REGISTRY_GREW,  # the dynamic registry grew on the hires
         FeatureName.COMMS_WIRED,
         FeatureName.DOCUMENTS_FILED,
     }
@@ -95,9 +96,8 @@ def test_build_is_deterministic_for_a_fixed_scenario(corpus_dir: Path) -> None:
 
     def trail_fingerprint() -> tuple[object, ...]:
         built, _ = _build(scenario, corpus_dir / "run")
-        return tuple(
-            (e.seq, e.kind, e.subject_role_id, e.detail) for e in built.org.state.trail.events
-        )
+        events = built.recording_org.org.state.trail.events
+        return tuple((e.seq, e.kind, e.subject_role_id, e.detail) for e in events)
 
     first = trail_fingerprint()
     second = trail_fingerprint()

@@ -23,6 +23,7 @@ proving the platform rejects bad input rather than emitting a divergent answer.
 
 from __future__ import annotations
 
+from autofirm.capabilities.capability_recording_org import CapabilityRecordingOrg
 from autofirm.document_store.librarian_filing_service import LibrarianFilingService
 from autofirm.e2e.isolated_company_workspace import IsolatedCompanyWorkspace
 from autofirm.e2e.operate_decisions_checks import (
@@ -44,12 +45,11 @@ from autofirm.e2e.operate_platform_checks import (
 )
 from autofirm.e2e.public_company_scenarios import PublicCompanyScenario
 from autofirm.e2e.scenario_result_contract import FeatureCheck
-from autofirm.org.org_lifecycle_engine import DynamicOrg
 
 
 def operate_company(
     scenario: PublicCompanyScenario,
-    org: DynamicOrg,
+    recording_org: CapabilityRecordingOrg,
     librarian: LibrarianFilingService,
     workspace: IsolatedCompanyWorkspace,
 ) -> tuple[FeatureCheck, ...]:
@@ -57,7 +57,9 @@ def operate_company(
 
     Args:
         scenario: The public-data company being operated.
-        org: The built, live org (used for front-door routing over the real org).
+        recording_org: The built company grown through the capability-recording
+            wrapper; the front door routes over its LIVE capability registry and the
+            flow check uses its underlying org.
         librarian: The company's document store (the generated artifact is filed).
         workspace: The isolated workspace (the artifact is written under its root).
 
@@ -72,10 +74,10 @@ def operate_company(
         check_runway_decision(scenario),
         check_market_intel_sweep(scenario),
         check_green_light_gate(scenario),
-        check_front_door_routing(scenario, org),
+        check_front_door_routing(scenario, recording_org),
         check_artifact_and_filing(scenario, librarian, workspace),
         check_heartbeat_tick(scenario),
-        check_flow_handoff(scenario, org),
+        check_flow_handoff(scenario, recording_org.org),
         check_fail_closed_guard(scenario),
     )
 
