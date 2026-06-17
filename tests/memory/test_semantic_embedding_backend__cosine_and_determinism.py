@@ -68,6 +68,19 @@ def test_cosine_with_zero_vector_is_zero_not_nan() -> None:
     assert result == 0.0
 
 
+def test_cosine_denormal_magnitude_stays_within_unit_range() -> None:
+    # Regression (pre-existing bug): a denormal/near-zero component made the
+    # dot/(norm_a*norm_b) ratio round fractionally above 1.0 (observed 1.004...),
+    # which is mathematically impossible. The clamp must absorb that FP epsilon so
+    # the result is *exactly* within the closed unit interval [-1.0, 1.0].
+    s = cosine_similarity((1.0,), (1.7e-161,))
+    assert -1.0 <= s <= 1.0
+    # Parallel same-sign vectors must clamp to exactly the upper bound.
+    assert s == 1.0
+    # The anti-parallel counterpart must clamp to exactly the lower bound.
+    assert cosine_similarity((1.0,), (-1.7e-161,)) == -1.0
+
+
 @settings(max_examples=200)
 @given(text=st.text(min_size=1, max_size=120).filter(lambda s: s.split()))
 def test_property_embedding_deterministic_and_self_cosine_one(text: str) -> None:
@@ -80,7 +93,7 @@ def test_property_embedding_deterministic_and_self_cosine_one(text: str) -> None
     assert math.isclose(cosine_similarity(v1, v2), 1.0, rel_tol=1e-9)
 
 
-@settings(max_examples=200)
+@settings(max_examples=1000)
 @given(
     a=st.lists(st.floats(-5, 5), min_size=1, max_size=8),
     b=st.lists(st.floats(-5, 5), min_size=1, max_size=8),
@@ -93,4 +106,7 @@ def test_property_cosine_bounded_and_symmetric(a: list[float], b: list[float]) -
     s1 = cosine_similarity(tuple(a), tuple(b))
     s2 = cosine_similarity(tuple(b), tuple(a))
     assert math.isclose(s1, s2, rel_tol=1e-9, abs_tol=1e-12)  # symmetry
-    assert -1.0 - 1e-9 <= s1 <= 1.0 + 1e-9  # bounded
+    # Strict closed unit interval -- the clamp must guarantee this exactly, with
+    # NO epsilon slack (denormal/FP rounding previously breached 1.0; see the
+    # denormal regression test above).
+    assert -1.0 <= s1 <= 1.0  # bounded
