@@ -133,11 +133,17 @@ class DecisionRecommendation(BaseModel):
         return value
 
     def primary_driver(self) -> DecisionDriver:
-        """Return the single most-influential driver (first in the ordered tuple).
+        """Return the single most-influential driver (the head of the ordered tuple).
 
-        Drivers are stored most-influential-first by the model that built them, so
-        the head is the dominant reason. Always defined: the contract guarantees a
-        non-empty driver tuple.
+        The model that builds the recommendation is responsible for ordering its
+        drivers most-influential-first (the dominant, decision-making reason at the
+        head). This contract is deliberately ORDER-PRESERVING: it stores the drivers
+        exactly as supplied and never silently re-ranks them -- so the "primary"
+        reported here is always the one the model DECLARED, even if a secondary
+        driver happens to carry a larger signed ``contribution``. Re-sorting by raw
+        magnitude here would let the explanation drift from the decision the model
+        actually made (CLAUDE.md §3.11, why == what). Always defined: the contract
+        guarantees a non-empty driver tuple.
         """
         return self.drivers[0]
 
