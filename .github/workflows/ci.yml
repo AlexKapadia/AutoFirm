@@ -37,9 +37,18 @@ on:
 permissions:
   contents: read
 
+# Concurrency: keep fast per-push/PR feedback snappy by cancelling SUPERSEDED
+# fast runs, but NEVER let a push cancel the long mutation-gate run. The mutation
+# gate (schedule/workflow_dispatch) gets its own group with cancel-in-progress
+# disabled so a push (which only runs the fast gates) cannot cancel an in-flight
+# mutation pass; a second mutation run queues instead of cancelling the first.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: >-
+    ci-${{ github.ref }}-${{
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+      && 'mutation' || 'fast' }}
+  cancel-in-progress: >-
+    ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
 
 jobs:
   # ---------------------------------------------------------------------------
