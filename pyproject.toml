@@ -102,6 +102,10 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 # Tests may omit module/function docstrings and use assert-heavy bodies.
 "tests/**" = ["D100", "D101", "D102", "D103", "D104", "PLR2004", "PLC0415", "PLR0911"]
+# Evidence/ generators are analysis-only and render display strings that use real
+# typographic glyphs (× multiplication sign, → arrow) on purpose — the ambiguous-
+# unicode lints (RUF001/RUF002) would force ugly ASCII into the showcase visuals.
+"evidence/**" = ["RUF001", "RUF002"]
 
 # -----------------------------------------------------------------------------
 # Mypy — strict type gate (ADR-001 §1, §3 step 1; CLAUDE.md §5.7).
