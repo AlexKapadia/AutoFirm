@@ -47,6 +47,7 @@ Exit codes
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import sqlite3
 import subprocess
@@ -70,12 +71,11 @@ def _force_utf8_console() -> None:
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:  # text streams on 3.7+ expose reconfigure()
-            try:
+            # Non-fatal: a stream that refuses reconfiguration (e.g. already
+            # detached/redirected) must not break the gate, so suppress the
+            # exotic ValueError/OSError rather than aborting.
+            with contextlib.suppress(ValueError, OSError):  # pragma: no cover
                 reconfigure(encoding="utf-8", errors="replace")
-            except (ValueError, OSError):  # pragma: no cover - exotic stream
-                # Non-fatal: a stream that refuses reconfiguration (e.g. already
-                # detached/redirected) must not break the gate.
-                pass
 
 # The only statuses that count as a killed (good) mutant. Everything else --
 # survived, timed out, suspicious, or never tested -- fails the gate (fail-closed:
