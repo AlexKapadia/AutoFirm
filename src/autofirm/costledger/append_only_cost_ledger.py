@@ -73,14 +73,21 @@ class AppendOnlyCostLedger:
 
     __slots__ = ("_records",)
 
-    def __init__(self, records: tuple[UsageCostRecord, ...] = ()) -> None:
+    def __init__(
+        self, records: tuple[UsageCostRecord, ...] = (), *, _trusted: bool = False
+    ) -> None:
         """Wrap ``records`` and fully verify the chain (fail-closed at construction).
 
         A ledger can only be observed if its chain verifies end to end, so a tampered
-        tuple can never be wrapped and trusted.
+        tuple can never be wrapped and trusted. ``_trusted`` is a PRIVATE fast-path
+        used ONLY by :meth:`append` — where the prefix was already verified at its own
+        construction and the single new link is checked by :meth:`append` itself — so
+        appending stays O(1) instead of re-verifying the whole chain O(n) every time
+        (which would make building an n-row ledger O(n²)). It is never part of the
+        public API; an externally-supplied tuple is ALWAYS fully verified.
         """
         self._records = records
-        if not self._chain_is_intact():
+        if not _trusted and not self._chain_is_intact():
             # fail-closed: never hold or serve an unverifiable chain.
             raise CostLedgerError("cost ledger chain failed verification (tamper detected)")
 
@@ -108,7 +115,11 @@ class AppendOnlyCostLedger:
         if record.prev_hash != self.tip_hash:
             # fail-closed: a prev_hash that does not chain the tip breaks the chain.
             raise CostLedgerError("record prev_hash does not match the ledger tip (broken chain)")
-        return AppendOnlyCostLedger((*self._records, record))
+        # The prefix was verified when THIS ledger was built and the new link is
+        # checked just above, so the result is provably intact — skip the O(n)
+        # re-walk (keeps n appends O(n), not O(n²)). The record's own record_hash was
+        # already validated against its content at its construction.
+        return AppendOnlyCostLedger((*self._records, record), _trusted=True)
 
     def seal_new(  # noqa: PLR0913 -- a cost row is intrinsically wide; every field
         # is a distinct, required, keyword-only business input (no grab-bag dict).
