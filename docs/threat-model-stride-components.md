@@ -135,9 +135,96 @@ RACI-gated, fail-closed; broker mints fresh per-session SPIFFE id + short-TTL cr
 
 ---
 
+---
+
+# Gate-1 evolution deltas (RATIFIED) — C5′ / C4′ / C8′ / C9
+
+> Ratified at Gate 1 from the B6 egress/supply-chain digests and ADR-003. These EXTEND (not replace) C4 / C5 / C8
+> and ADD C9. Same house format: every threat names a **specific** cited fail-closed control; the audit log stores
+> **hashes/lineage, never raw PII** (T1); hooks are **fail-OPEN — logging only, never the boundary** (T2). Sources
+> are B6 research folder slugs (under `docs/research/B6-egress-and-supplychain-threats/`) plus the existing A7/A8
+> syntheses. Grounded in the existing code seams `access/credential_broker.py` and `access/secret_source_protocol.py`
+> (fail-closed issuance, env/secret-manager-only source, `RedactedSecret`) — the deltas describe the controls those
+> seams satisfy at multi-provider scale, not a parallel mechanism.
+
+## C5′ — Model-egress gateway as the single outbound chokepoint (extends C5 / A8.1; ADR-003)
+The gateway is the **only** path to model providers and the outside world: TLS, OWASP-API validation, throttling,
+circuit breakers, dual-LLM/CaMeL capability interpreter, audit. Because it is the *single egress*, its
+**availability** is itself a primary threat surface for an unattended run. **Degraded-mode principle (binding):**
+the gateway being down **fails the affected capability closed, never blocks the whole platform** — CLI agents are
+Anthropic-only and **fail static to direct-to-Anthropic with a loud audited downgrade**; programmatic any-model
+traffic **fails that capability closed**.
+
+| STRIDE | Threat | Control (cited) | Sev |
+|---|---|---|---|
+| **S** | A spoofed/look-alike provider endpoint, or a forged "gateway-healthy" signal, keeps traffic flowing to an attacker | **mTLS + TLS-only egress with redirect allowlist** on every provider hop; the health/degrade signal is **out-of-band and not agent-assertable** (same posture as the kill-switch) (A8.1 src 02; B6 `safely-interruptible-agents`) | H |
+| **T** | A poisoned provider/router response (or tampered route table) silently redirects spend to a costlier/attacker model | **Validate-and-sanitize all external responses (untrusted-by-default)**; route/price tables are **version-pinned** snapshots, not provider-asserted at call time (A8.1 src 01; B6 `owasp-api4-resource-consumption`) | H |
+| **R** | An egress side-effect with no provable origin during a degraded/fallback window | Gateway **audits every external call** (what/when/who) into the C3 log via the fail-closed path; the direct-to-Anthropic fallback emits a loud **`egress.downgrade`** audit event so the degraded window is fully attributable (A8.1 src 02; T2) | M |
+| **I** | Untrusted-origin data exfiltrated through tool/model arguments on the one channel everything funnels through | **CaMeL IFC/taint + context-minimization** — untrusted-origin values cannot become exfiltration args; **taint travels with the value across agent hops** (A8.1 src 03/04; B6 `camel-defeating-prompt-injection-by-design`, `dual-llm-pattern-willison`) | C |
+| **D** | **SINGLE-EGRESS DoS / cascading failure** — the gateway overloads, crashes, or is flooded and *every* agent in an unattended run stalls behind it (whole-platform SPOF) | **Graceful degradation + load shedding + backoff-with-jitter + retry budgets + circuit breakers** (B6 `google-sre-cascading-failures`); per-operation throttling + spend caps (B6 `owasp-api4-resource-consumption` API4:2023); **supervised auto-restart with a MaxR-in-MaxT restart-intensity cap** so a crash-loop escalates to the kill-switch rather than thrashing (B6 `erlang-otp-supervision-trees`); **degraded-mode is fail-static, not fail-stop** — CLI/Anthropic traffic → direct-to-Anthropic with a loud audited downgrade; programmatic any-model traffic → fail that capability closed; *never* a whole-platform block | **C** |
+| **E** | Indirect prompt injection makes an agent invoke a high-risk egress (spend/outreach/tool) it shouldn't, abusing the single chokepoint's reach | **Plan-Then-Execute control-flow integrity (P-LLM plans before untrusted data is seen) + least-privilege tool scopes + HITL challenge-response on irreversible actions**; `ModelSelector.candidates` is a closed allowed-set per use-case (A8.1 src 03/06; data-contracts §7) | C |
+
+**Degraded-mode note (the load-bearing D-row).** Google SRE Ch. 22 frames cascading failure as positive-feedback
+overload whose canonical defenses are load shedding, graceful degradation, backoff+jitter, retry budgets, deadline
+propagation, and circuit breaking. Applied to a single egress, AutoFirm splits by capability — **(a)** Anthropic-only
+CLI traffic has a **fail-static** fallback (direct-to-Anthropic) gated by a loud `egress.downgrade` audit event and
+the same out-of-band trust signal as the kill-switch; **(b)** any traffic that *requires* the gateway's
+routing/IFC/policy (programmatic any-model) **fails that capability closed** (no silent CaMeL-bypassing direct call).
+Gateway restart is OTP-supervised with a restart-intensity cap that escalates to the kill-switch / overseer rather
+than thrashing or silently degrading forever. **No operator intervention required — unattended-safe.**
+
+## C4′ — Multi-provider secret management at scale (extends C4 / A8.3; `credential_broker.py`)
+The broker now mints credentials for **many providers**. The new surface is **blast radius across providers**: a
+key spanning providers, or a leaked session token reusable elsewhere, turns one compromise into many.
+
+| STRIDE | Threat | Control (cited) | Sev |
+|---|---|---|---|
+| **S** | A workload requests a provider identity it is not entitled to (cross-provider impersonation) | **Attested SPIFFE SVID per session** via the Workload API — the workload holds *no standing token* and proves identity through node+workload attestation before any SVID issues (A8.3 src 13; B6 `spiffe-spire-workload-identity`) | H |
+| **T** | A token's scope/audience is widened in flight to reach a second provider | **RFC-8693 token exchange is downscope-only** — each hop narrows scope/resource/audience, never widens; a token minted for provider A is audience-rejected by provider B (A8.3 src 10; B6 `rfc-8693-oauth-token-exchange`) | H |
+| **R** | Disputed "which provider credential was held when, by whom?" | **`act` delegation chain** recorded into the C3 audit; the broker already audits issuance + every authorize OK/DENY with **non-secret metadata only** (`credential_broker.py`; A8.3 src 10) | M |
+| **I** | A provider secret leaks into a prompt, log, transcript, or shared-knowledge entry | **Secrets via env/secret-manager only**, wrapped `RedactedSecret` opaque from entry; broker audits metadata only; short-TTL auto-expiry caps the leak window; never in argv/prompt/log (`secret_source_protocol.py`; A8.3) | C |
+| **D** | Broker cannot mint per-session creds at provider-spawn-cap rate → stall; or one provider's outage cascades into a mint storm | **Broker mint-rate is a substrate test (fail-closed: no credential → no action)**; **per-provider isolation = a bulkhead**, so one provider's failure is not a fleet-wide stall (B6 `google-sre-cascading-failures`; T3) | M |
+| **E** | A leaked leaf-agent token grants broad or **cross-provider** power — one compromise spans all providers (god-key) | **No god-key spanning providers** — per-provider, per-session, least-privilege **short-TTL** SVIDs + **sender-constrained (DPoP)** tokens that are *"useless if leaked"* without the bound private key (A8.3 src 12/13; B6 `rfc-9449-dpop-sender-constrained-tokens`) | **C** |
+
+## C8′ — Dynamic capability / skill supply-chain (extends C8 spawn-path & cross-cutting vector 6)
+Agents can **load skills / MCP servers / tools at runtime**. The new surface is **supply-chain compromise of the
+loaded artifact**: a poisoned skill executing attacker code, a malicious tool `description` injecting through the
+tool channel, or a **rug-pull** (a server that passes audit then silently swaps its definition). House posture:
+**signed + verified + least-privilege loading; refuse-NOT-quarantine on any verification miss (fail-closed).**
+
+| STRIDE | Threat | Control (cited) | Sev |
+|---|---|---|---|
+| **S** | A malicious artifact masquerades as a trusted skill/MCP server (identity spoof) | **Verify signature + signer identity before load** — Sigstore keyless signing binds an OIDC identity and records it in the **Rekor append-only transparency log** (B6 `sigstore-artifact-signing`; OWASP LLM03:2025 Supply Chain) | H |
+| **T** | The artifact is tampered between build and load, or its definition drifts after audit (**rug-pull / TOCTOU**) | **SLSA-provenance verify-before-load** (L2 signed provenance) + **version-pinned manifests** + **re-verify on EVERY load, not just install** — trust granted once does not bind later behavior (B6 `slsa-supply-chain-framework`, `mcp-tool-poisoning-rug-pull`; substrate §1) | **C** |
+| **R** | "Where did this capability come from / who published it?" is unanswerable after an incident | Load events record the **artifact digest + signer identity + provenance attestation** into the C3 audit; the Rekor entry is an independent append-only witness (B6 `sigstore-artifact-signing`, `slsa-supply-chain-framework`) | M |
+| **I** | A poisoned tool **`description`** is indirect prompt injection in the tool channel; the loaded skill reads/writes the shared-knowledge layer and exfiltrates | **Treat tool metadata as untrusted data** — it passes the CaMeL Q-LLM/IFC path, never the trusted plan; least-privilege scope on the loaded capability (B6 `mcp-tool-poisoning-rug-pull`, `camel-defeating-prompt-injection-by-design`; OWASP LLM01:2025) | **C** |
+| **D** | A flood of dynamic loads, or a heavyweight/recursive skill, exhausts compute/spend | Load is **governance-gated (the C8 SPAWN request path, not self-service)**; per-load resource caps + the gateway's throttling/circuit-breakers bound the blast radius (B6 `google-sre-cascading-failures`, `owasp-api4-resource-consumption`; org-model §2.3) | H |
+| **E** | A loaded skill widens its own privileges or executes code beyond its declared scope | **Least-privilege loading + minimum required SLSA level per capability class**; **refuse-not-quarantine** on any signature/provenance/version miss — an unverified artifact is **never loaded into a sandbox "to inspect"**, it is refused (B6 `slsa-supply-chain-framework`, `sigstore-artifact-signing`; CLAUDE.md §5.6 fail-closed) | C |
+
+## C9 — Cost-data integrity (NEW component; B5/B6, on the C3 audit substrate)
+Cost is the budget-cap and kill-switch's primary input on an unattended run. The threat: a compromised/rogue agent
+**inflates spend** (to frame a victim / exhaust a competitor's budget) or **hides spend** (to evade caps and keep
+spending). **Control thesis (binding):** cost is **NEVER a number an agent can choose** — it is a deterministic
+pure function of provider-**attested usage × a versioned price snapshot**, written **append-only + hash-chained**,
+**independently reconciled** against the provider's billing/usage meter. **The spender is not the scorekeeper.**
+
+| STRIDE | Threat | Control (cited) | Sev |
+|---|---|---|---|
+| **S** | A cost record is written under a spoofed actor, or self-reported usage is passed off as provider-attested | Usage is the **provider-attested meter** (provider usage/billing API), not an agent claim; cost actor is an **attested SPIFFE id**; `requesting_role_id` is **bound from the authenticated virtual key, not self-declared**; the **agent has no write path to the cost-of-record** (B6 `billing-reconciliation-internal-control`, `nist-sp-800-92-log-management`; A8.3) | H |
+| **T** | An agent edits a cost figure, or recomputes cost with a different price to under/over-state it | **Cost = f(attested_usage, versioned_price_snapshot)** computed by the deterministic core (propose-then-dispose); the price snapshot is **immutable + versioned**; recomputation is reproducible to the unit (CLAUDE.md §3.11; B6 `billing-reconciliation-internal-control`; data-contracts §8) | **C** |
+| **R** | An agent denies the spend it incurred, or claims a different total | Every cost event is provable via an **RFC-6962 inclusion proof** against a signed cost-tree head; the per-window total is a **Merkle-aggregated authenticated sum**, so the cap decision itself is provable (B6 `rfc-6962-certificate-transparency`, `crosby-wallach-tamper-evident-logging`; reuses `audit/rfc6962_hashing.py`) | M |
+| **I** | The cost ledger leaks tenant/PII or sensitive deal context | **Hashes/lineage only (T1)**; ledger transit TLS, storage append-only/write-once, access least-privilege (B6 `nist-sp-800-92-log-management`) | M |
+| **D** | **Silent cap evasion** — a compromised reporter quietly UNDER-reports or TRUNCATES its own spend so the enforcer sees a low total while spend continues (or OVER-reports to frame/DoS another tenant) | **History-tree consistency proofs defeat truncation** (a plain hash chain does NOT — entries can be dropped off the end); **signed cost commitments gossiped to independent auditors** (reconciler + enforcer + North-Star overseer) expose equivocation; budget cap is a provable authenticated aggregate, not a self-reported counter; **fail-closed: in the reconciliation window use the conservative (higher) of provisional vs reconciled cost** and trip containment on divergence (B6 `crosby-wallach-tamper-evident-logging`, `rfc-6962-certificate-transparency`, `billing-reconciliation-internal-control`) | **C** |
+| **E** | A compromised component seals/forges a cost-tree head, or grants itself the reconciler role | **Cost-tree-head signing + reconciliation are a separate privilege the spending agent never holds** (segregation of duties); the **reconciler compares against the provider meter as source of truth** — the spender cannot become the scorekeeper (B6 `billing-reconciliation-internal-control` COSO SoD, `crosby-wallach-tamper-evident-logging`) | C |
+
+---
+
 ## Coverage map
-8 components × full STRIDE (S/T/R/I/D/E) = 48 enumerated threats, each with a cited fail-closed control.
-Components: C1 substrate · C2 bus · C3 audit log · C4 credential broker · C5 API gateway PEP · C6 tenant RLS ·
-C7 kill-switch · C8 dynamic spawn. Cross-cutting vectors from A7 §2 (indirect/direct prompt injection,
-memory/RAG poisoning, tool abuse, privilege escalation, supply-chain, collusion, exfiltration) are each placed
-on at least one component row above.
+**12 components × full STRIDE (S/T/R/I/D/E) = 72 enumerated threats**, each with a cited fail-closed control.
+Gate-2 base (48): C1 substrate · C2 bus · C3 audit log · C4 credential broker · C5 API gateway PEP · C6 tenant RLS ·
+C7 kill-switch · C8 dynamic spawn. Gate-1 evolution deltas (24): C5′ model-egress gateway (single-egress DoS/SPOF +
+degraded-mode) · C4′ multi-provider secrets (no god-key spanning providers) · C8′ dynamic capability supply-chain
+(signed/verified/pinned, re-verify-every-load, refuse-not-quarantine) · C9 cost-data integrity (attested-usage ×
+versioned-price, hash-chained + reconciled). Cross-cutting vectors from A7 §2 (indirect/direct prompt injection,
+memory/RAG poisoning **with cross-agent fan-out amplification**, tool abuse, privilege escalation, supply-chain,
+collusion, exfiltration) are each placed on at least one component row above.

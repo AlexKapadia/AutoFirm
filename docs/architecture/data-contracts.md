@@ -183,3 +183,170 @@ HealthScore    : composite + rate-of-change alarm (trend-fire)                  
 
 All edges are **typed contracts validated at the boundary** (fail-closed); none is an implicit
 assumption (closes QA-REVIEW C1.3 / LAYER1-SIGNOFF §5.5).
+
+---
+
+# Part II — Gate-1 evolution contracts (RATIFIED, frozen for Phase-2 build)
+
+> Ratified at Gate 1 from `evolution-plan.md` §A.3 and ADR-003. These are the **frozen Pydantic v2 contracts**
+> the Phase-2 tracks implement field-by-field. **House-style invariants (binding on every model below):**
+> `model_config = ConfigDict(frozen=True)`; **`Decimal` not `float` for any money/price**; money arithmetic
+> reuses `foundation/money/exact_money_arithmetic.py` (existing — exact-to-the-cent, zero rounding error,
+> CLAUDE.md §3.11); hash links reuse `audit/rfc6962_hashing.py` (`leaf_hash` / `node_hash`, 0x00/0x01 domain
+> separation); **≤300 lines per source file**, module + field docstrings, inline `# fail-closed:` /
+> `# least-privilege:` comments on every security-relevant line. **Fail-closed validation rule (every field):**
+> a missing or ambiguous *required* field is a **refusal** (`ValueError` in a `@field_validator` /
+> `@model_validator`), **never a silent default**. **Generality rule (binding):** no magic constants and no
+> provider/company hard-coding — every contract works for *any* provider, *any* company, *any* use-case
+> (CLAUDE.md §3.9). Closed `Literal`/enum sets are **extensible** (add a member), never a per-fixture special case.
+
+## 7. Model-gateway contracts (`src/autofirm/modelgateway/`)
+
+`ModelRef`, `UseCaseId`, `RoleId`, closed enums live in `model_reference.py`; the request/response/selector/usage
+shapes in `model_invocation_contract.py`. `ModelSelector` is a **selection policy, not a model string** — the core
+of "many models per use-case" (ADR-003 §3).
+
+```
+ModelRef {                                   # (provider, model_name) — provider-agnostic, no hard-coding
+  provider   : str                # REQUIRED  fail-closed: non-empty, lower-cased identity (e.g. "anthropic")
+  model_name : str                # REQUIRED  fail-closed: non-empty; never a default model picked silently
+}
+Message {
+  role       : Literal["system","user","assistant","tool"]   # REQUIRED  closed set; refuse unknown role
+  content    : str                # REQUIRED  fail-closed: refuse None (empty string is allowed, None is not)
+  trust_tag  : Literal["trusted","untrusted"]   # REQUIRED  injection-tagging — untrusted content cannot
+                                  #   become control flow (CaMeL/dual-LLM; threat-model C5/C5′ I-row).
+                                  #   fail-closed: default-deny → if origin unknown, MUST be "untrusted"
+}
+ModelSelector {                              # SELECTION POLICY — pinned | preferred_with_failover | ensemble_quorum
+  strategy   : Literal["pinned","preferred_with_failover","ensemble_quorum"]   # REQUIRED  refuse unknown strategy
+  candidates : tuple[ModelRef,...]   # REQUIRED  ordered; @model_validator: len>=1 (fail-closed: empty → refuse);
+                                  #   pinned ⇒ len==1 (refuse >1); failover/quorum ⇒ len>=1
+  quorum     : PositiveInt | None    # REQUIRED-IFF strategy=="ensemble_quorum": @model_validator refuses if
+                                  #   None when quorum, or set when not; refuse quorum > len(candidates)
+}
+ModelInvocationRequest {
+  correlation_id     : UUID            # REQUIRED  joins audit (A6 trace_id) + cost ledger; refuse if absent
+  requesting_role_id : RoleId          # REQUIRED  who is spending (W5 attribution); least-privilege: bound from
+                                  #   the authenticated virtual key, NOT self-declared (threat-model C9 S-row)
+  use_case           : UseCaseId       # REQUIRED  closed-set-extensible routing key; refuse unknown only if the
+                                  #   selector policy demands a known use-case (else accept any non-empty id)
+  model_selector     : ModelSelector   # REQUIRED  the policy above
+  messages           : tuple[Message,...]   # REQUIRED  @model_validator: len>=1; each Message validated
+  max_output_tokens  : PositiveInt     # REQUIRED  bounded work — no unbounded spend (fail-closed: refuse <=0)
+  temperature        : Decimal         # OPTIONAL  default Decimal("0") (deterministic); refuse <0 or >2
+  credential_ref     : ScopedCredentialReference   # REQUIRED  secret-FREE handle; least-privilege: the virtual
+                                  #   key is resolved at point-of-use, never carried in the request
+  kill_switch_token  : KillSwitchEpoch # REQUIRED  fail-closed: refuse the call if the epoch is tripped (C7)
+}
+ModelInvocationResponse {
+  correlation_id : UUID            # REQUIRED  echoes the request exactly; refuse on mismatch
+  served_by      : ModelRef        # REQUIRED  which model/provider actually answered (failover-aware)
+  output         : Message         # REQUIRED  trust_tag of model output is "untrusted" by default (C5 T-row)
+  usage          : TokenUsage      # REQUIRED  provider-RETURNED counts echoed verbatim (never locally guessed)
+  finish_reason  : Literal["stop","length","tool_use","content_filter","error"]   # REQUIRED  closed set
+  served_at      : Timestamp       # REQUIRED  injected clock (deterministic-testable), never wall-clock in core
+}
+```
+
+**TokenUsage echo invariant.** `ModelInvocationResponse.usage` is the **provider-returned** `TokenUsage`
+(§8 below) carried through unchanged — the gateway never substitutes a locally-computed count. This is the
+single source the cost ledger trusts (W5: "trust provider usage over local tokenizers").
+
+## 8. Cost-ledger contracts (`src/autofirm/costledger/`)
+
+`TokenUsage`, `UsageCostRecord`, `PriceVector` in `usage_cost_record.py`; the versioned snapshot in
+`price_catalog_contract.py`. **Money is `Money` (Decimal-backed via `exact_money_arithmetic`); never `float`.**
+
+```
+TokenUsage {                                 # provider-RETURNED counts ONLY (trust usage over local tokenizers)
+  input_tokens       : NonNegInt    # REQUIRED  fail-closed: refuse <0
+  output_tokens      : NonNegInt    # REQUIRED  fail-closed: refuse <0
+  cache_read_tokens  : NonNegInt    # REQUIRED (default 0)  prompt-cache READ accounting (priced separately)
+  cache_write_tokens : NonNegInt    # REQUIRED (default 0)  prompt-cache WRITE accounting (priced separately)
+  reasoning_tokens   : NonNegInt    # REQUIRED (default 0)  reasoning-model output accounting (priced separately)
+}
+PriceVector {                                # the EXACT per-token prices applied — a frozen Decimal snapshot
+  currency             : str        # REQUIRED  ISO-4217; fail-closed: cross-currency totals NEVER silently summed
+  input_price          : Decimal    # REQUIRED  price per input token; refuse <0
+  output_price         : Decimal    # REQUIRED  price per output token; refuse <0
+  cache_read_price     : Decimal    # REQUIRED  per cache-read token; refuse <0
+  cache_write_price    : Decimal    # REQUIRED  per cache-write token; refuse <0
+  reasoning_price      : Decimal    # REQUIRED  per reasoning token; refuse <0
+}                                   # ALL Decimal — a float here is an own-goal against §3.11; refuse non-Decimal
+UsageCostRecord {                            # ONE immutable ledger row per invocation (append-only, hash-chained)
+  correlation_id     : UUID         # REQUIRED  joins invocation + audit; refuse if absent
+  requesting_role_id : RoleId       # REQUIRED  attribution (per-role/team/use-case/company rollups)
+  use_case           : UseCaseId    # REQUIRED
+  served_by          : ModelRef     # REQUIRED
+  usage              : TokenUsage   # REQUIRED  the provider-attested counts
+  unit_prices        : PriceVector  # REQUIRED  the exact prices applied (frozen snapshot)
+  cost               : Money        # REQUIRED  EXACT Decimal via exact_money_arithmetic; recomputation MUST
+                                  #   equal f(usage, unit_prices) to the unit (zero numerical error, §3.11)
+  cost_source        : Literal["provider_reported","price_map_computed"]   # REQUIRED  provenance of the number:
+                                  #   provider_reported = provider's own cost figure (PREFERRED when available);
+                                  #   price_map_computed = fallback computed from the versioned snapshot
+  price_catalog_version : SemVer    # REQUIRED  which price snapshot was used (reconcilable; stamped on every row)
+  recorded_at        : Timestamp    # REQUIRED  injected clock
+  prev_hash          : Hash         # REQUIRED  RFC-6962 chain link to the previous ledger row (leaf_hash, 0x00)
+  record_hash        : Hash         # REQUIRED  H(canonical(this record)); tamper-evidence (C9 T-row).
+}                                   #   @model_validator: record_hash MUST equal the canonical hash → refuse mismatch
+```
+
+**`price_catalog_contract` (the versioned, frozen snapshot):**
+
+```
+PriceCatalog {
+  version           : SemVer        # REQUIRED  SemVer; a price-shape-breaking change is a MAJOR bump
+  source_pin_sha    : Hash          # REQUIRED  the commit SHA of the pinned upstream catalog snapshot
+                                  #   (LiteLLM model_prices_and_context_window.json) — frozen in-repo, item 5
+  prices            : Mapping[ModelRef, PriceVector]   # REQUIRED  per-model price vectors; refuse empty
+  effective_at      : Timestamp     # REQUIRED  when this snapshot became authoritative
+}                                   # frozen=True; an update is a deliberate, version-bumped, reconciled change —
+                                  #   NOT an in-place edit (item 5). Lookup miss → fail-closed refuse, never $0.
+```
+
+**Cost-computation invariant (item 4, item 6).** `exact_cost_computation.py` is the pure function
+`(TokenUsage, PriceVector) -> Money`, summed per token-class via `exact_money_arithmetic` (no `float`, no
+intermediate rounding). When `cost_source == "provider_reported"` the provider's figure is the cost of record and
+the computed figure is the reconciliation cross-check; when `"price_map_computed"` the computed figure IS the cost.
+These three modules — `exact_cost_computation.py`, `append_only_cost_ledger.py`,
+`provider_billing_reconciliation.py` — are **mutation-critical** (CI mutation gate, item 4).
+
+## 9. Capability-registry contracts (`src/autofirm/capabilities/`)
+
+`CapabilityDescriptor` in `capability_descriptor.py`; the append-only growth event in
+`capability_registry_event.py`. Replaces the locked-in static capability list (no graveyard — item 3).
+
+```
+CapabilityDescriptor {                       # ONE advertised capability of the LIVE org
+  capability_id      : CapabilityId   # REQUIRED  stable identity; refuse if absent
+  name               : str            # REQUIRED  self-documenting ("own paid acquisition"); refuse empty
+  keywords           : frozenset[str] # REQUIRED  routing surface; @field_validator: refuse empty set
+                                  #   (fail-closed: an unroutable capability is a defect, not a default)
+  owning_role_id     : RoleId         # REQUIRED  single-writer link — exactly one owning role
+  required_clearance : str            # REQUIRED  least-privilege: NO default; a deny-by-default sentinel
+                                  #   must be set explicitly — an unset clearance is a refusal
+  provenance         : CapabilityProvenance   # REQUIRED  WHY it exists (hire/promote/auto_create + gap ref)
+  maturity           : Literal["proposed","active","deprecated"]   # REQUIRED  lifecycle; refuse unknown
+}
+CapabilityRegistryEvent {                    # append-only growth log — HOW growth is recorded AND shown
+  seq            : NonNegInt        # REQUIRED  monotonic, GAPLESS; @model_validator: refuse a gap vs prev seq
+  kind           : Literal["CAPABILITY_ADDED","CAPABILITY_PROMOTED",
+                           "CAPABILITY_DEPRECATED","CAPABILITY_RESCOPED"]   # REQUIRED  closed set
+  descriptor     : CapabilityDescriptor   # REQUIRED  the POST-event state of the capability
+  triggered_by   : RoleId           # REQUIRED  the managing role whose lifecycle action caused growth;
+                                  #   least-privilege: NOT self-grant — only a managing role authors growth
+  org_event_ref  : OrgEventId       # REQUIRED  link back to the org-lifecycle event (hire/auto_create)
+  rationale      : str              # REQUIRED  PII-FREE 'why' (audited); refuse empty
+  occurred_at    : Timestamp        # REQUIRED  injected clock
+  prev_hash      : Hash             # REQUIRED  RFC-6962 chain link to the previous event (leaf_hash, 0x00)
+  record_hash    : Hash             # REQUIRED  H(canonical(this event)); tamper-evidence (reuses audit/)
+}                                   #   @model_validator: record_hash MUST equal the canonical hash → refuse mismatch
+```
+
+**Registry invariants.** The growth log is the **source of truth** for "show the evolution";
+`live_capability_registry.py` derives the *current* set from the gapless log + live `OrgState`, and
+`role_capability_index.py` / the operate-platform checks are **re-pointed** to read it (the surgical edit that
+retires the static tuples without a graveyard — item 3). Growth is bounded by the existing spawn-cap +
+single-writer RACI; every add traces to an org event (`org_event_ref`).

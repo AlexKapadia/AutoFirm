@@ -55,6 +55,14 @@ Each is enumerated across all six STRIDE categories in
 | C6 | Per-tenant data isolation (Postgres RLS FORCE) | A8.2 | cross-tenant read/write (S/T/I/E) |
 | C7 | Global kill-switch | A7 | agent disables/escapes containment (S/T/E) |
 | C8 | Dynamic role spawn / hire path | A1.5, T3 | self-spawn / capability sprawl (S/D/E) |
+| C5′ | **Model-egress gateway** (single egress plane; extends C5) | B1, A8.1, ADR-003 | single-egress DoS/SPOF; degraded-mode (D) |
+| C4′ | **Multi-provider secrets** (extends C4) | A8.3, B1 | god-key blast radius across providers (I/E) |
+| C8′ | **Dynamic capability / skill supply-chain** (extends C8) | B6, A1.5 | rug-pull / poisoned-skill load (S/T/E) |
+| C9 | **Cost-data integrity** (NEW) | B5, B6, A6 | agent lies about its own spend (T/D/E) |
+
+> **Gate-1 evolution deltas (C5′ / C4′ / C8′ / C9)** are enumerated in full STRIDE in the companion
+> `threat-model-stride-components.md`, ratified from the B6 egress/supply-chain digests and ADR-003. They EXTEND
+> (not replace) C4/C5/C8 and ADD C9. The new components keep all standing invariants below.
 
 ## Cross-cutting threat catalogue (A7 §2 — ≥3-source-corroborated)
 
@@ -65,8 +73,13 @@ red-team test (CLAUDE.md §3.6):
    filings/web/tool output). Mitigation: deterministic DAG routing default (T5) + dual-LLM/CaMeL
    trusted-plan/untrusted-data separation (A7 §3; A8.1). → C2, C5.
 2. **Direct prompt injection.** Mitigation: same CaMeL control-flow integrity + least-privilege. → C2, C5.
-3. **Memory / RAG poisoning** (links A4.4). Mitigation: verify-before-write reflection loop; provenance-
-   tracked, tenant-scoped, rollback-able writes (overview §2.3). → C2, C6.
+3. **Memory / RAG poisoning — with cross-agent FAN-OUT amplification (most dangerous vector found, B6).** A
+   *single* poisoned shared-knowledge / embedding entry (OWASP LLM01 indirect + LLM04 data/embedding poisoning) is
+   read back by **many** agents — one poisoned write steers the whole fleet. CaMeL guarantees control-flow /
+   exfiltration safety but **not** that parsed *content* is trustworthy, so read-back trust alone is insufficient
+   (RR-11). Mitigation: **taint/provenance attached at WRITE-time, carried WITH the value across every agent hop**,
+   consequential actions gated by the deterministic capability interpreter (CaMeL/dual-LLM); verify-before-write
+   reflection loop; provenance-tracked, tenant-scoped, rollback-able writes (overview §2.3; B6). → C2, C6.
 4. **Tool-use abuse / tool poisoning.** Mitigation: least-privilege tool scopes + HITL on high-risk. → C5.
 5. **Privilege escalation / capability sprawl.** Mitigation: single-writer RACI, spawn cap, no self-grant.
    → C1, C8.
@@ -95,6 +108,9 @@ mitigation / acceptance posture.
 | RR-6 | **Sandbox-escape category** (C1) | Sandbox escape is a named attack class; no sandbox is perfect (A7 §3 SoK) | Sandbox is **never sole control** — A8 gateway + SPIFFE creds are the egress boundary; escape tests in the substrate suite (substrate §7) | **M** |
 | RR-7 | **Cross-tenant leak via misconfigured RLS** | One missing ENABLE/FORCE/policy leaks tenants (A8.2 src 11) | **Schema-audit fails the build** if any tenant table lacks the invariant; cross-tenant IDOR matrix = 0 successes; Silo for heavy-compliance tenants | **M** |
 | RR-8 | **Unverified research formulae** (TRiSM CSS/TUE, Verifiability-First OPERA numbers) | Some safety sources read abstract-only; PDFs 403'd / deferred (A7 §9) | Do **not** implement guessed formulae; flagged as open items for QA / next wave; gated until primary source confirmed | **L** |
+| RR-9 | **Single-egress availability** (C5′) | Concentrating model egress in one gateway creates a SPOF (ADR-003) | Degraded-mode fail-static (CLI → direct-to-Anthropic, loud audited downgrade) + OTP-style supervised restart; residual = a gateway-down window degrades *programmatic any-model* capability (fails closed, by design — never whole-platform) | **L** |
+| RR-10 | **Reconciliation timing gap** (C9) | The provider billing meter lags real-time usage | Conservative provisional cost (use the higher of provisional vs reconciled in-window) + true-up via reversing entries; residual = a bounded window where provisional ≠ reconciled | **M** |
+| RR-11 | **Q-LLM content corruption persists** (C5′ / C8′ / poisoning fan-out) | CaMeL guarantees control-flow / exfiltration safety, **not** that parsed *content* is trustworthy | Write-time taint carried with the value across hops + verify-before-write + tenant-scoped rollback-able writes; consequential actions gated by the deterministic interpreter; quantified on AgentDojo into `evidence/` | **H** |
 
 **Posture:** no residual is rated Critical — every Critical-severity threat in the component matrices has a
 fail-closed deterministic control. The highest residual (RR-1) is the inherent incompleteness of prompt-
