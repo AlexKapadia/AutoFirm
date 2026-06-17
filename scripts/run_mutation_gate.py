@@ -47,6 +47,7 @@ Exit codes
 from __future__ import annotations
 
 import argparse
+import os
 import sqlite3
 import subprocess
 import sys
@@ -54,6 +55,27 @@ from pathlib import Path
 
 # mutmut 2.x persists per-mutant status in this SQLite file at the repo root.
 _CACHE_FILE = ".mutmut-cache"
+
+
+def _force_utf8_console() -> None:
+    """Make this script's own stdout/stderr UTF-8 so it cannot crash on emoji.
+
+    On a native Windows console the default code page is cp1252, which cannot
+    encode the emoji mutmut prints in its banner/progress output. Re-emitting
+    that text (or our own future output) through a cp1252 stream raises
+    ``UnicodeEncodeError`` and aborts the gate before it can grade anything.
+    Forcing UTF-8 here is non-semantic: it only changes how bytes are written,
+    never the PASS/FAIL decision (which is made from the cache, not stdout).
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:  # text streams on 3.7+ expose reconfigure()
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):  # pragma: no cover - exotic stream
+                # Non-fatal: a stream that refuses reconfiguration (e.g. already
+                # detached/redirected) must not break the gate.
+                pass
 
 # The only statuses that count as a killed (good) mutant. Everything else --
 # survived, timed out, suspicious, or never tested -- fails the gate (fail-closed:
@@ -79,7 +101,27 @@ def _run_mutmut(paths: list[str] | None) -> None:
     try:
         # We deliberately do not check the return code: mutmut exits non-zero when
         # mutants survive, but the cache (graded below) is the source of truth.
-        subprocess.run(cmd, check=False)  # fixed argv, no shell -> no injection
+        #
+        # mutmut prints an emoji banner with its OWN print() inside the child
+        # process. On a cp1252 Windows console that child's stdout is cp1252 too,
+        # so the emoji raises UnicodeEncodeError *inside mutmut* before it sends
+        # anything down a pipe. Forcing the child's I/O encoding to UTF-8 (via the
+        # standard PYTHONIOENCODING / PYTHONUTF8 env vars) is what actually stops
+        # the crash. We then capture and re-emit mutmut's output through our own
+        # UTF-8-hardened stdout for visibility. This is purely an I/O concern --
+        # it never touches the pass/fail decision (graded from the cache below).
+        child_env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
+        result = subprocess.run(  # fixed argv, no shell -> no injection
+            cmd,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding="utf-8",
+            errors="replace",
+            env=child_env,
+        )
+        if result.stdout:
+            print(result.stdout, end="")
     except FileNotFoundError as exc:  # pragma: no cover - environment failure
         # fail-closed: a mutation gate that cannot run is a FAILED gate.
         print(f"MUTATION GATE: FAILED -- mutmut could not be executed: {exc}")
@@ -139,6 +181,7 @@ def _grade_cache() -> int:
 
 def main(argv: list[str] | None = None) -> int:
     """Run the mutation gate and return the process exit code."""
+    _force_utf8_console()  # never let a cp1252 console crash the gate on emoji
     parser = argparse.ArgumentParser(description="Fail-closed mutation gate.")
     parser.add_argument(
         "--paths",

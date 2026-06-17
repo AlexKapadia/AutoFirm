@@ -50,7 +50,6 @@ class EmbeddingBackend(Protocol):
     well-defined). Real backends call a hosted encoder; the in-memory fake hashes.
     """
 
-    @property
     def dimension(self) -> int:
         """The fixed length of every vector this backend returns (> 0)."""
         ...
@@ -76,7 +75,14 @@ def cosine_similarity(a: tuple[float, ...], b: tuple[float, ...]) -> float:
     norm_b = math.sqrt(sum(y * y for y in b))
     if norm_a == 0.0 or norm_b == 0.0:
         return 0.0  # a zero vector has no direction -> defined as orthogonal
-    return dot / (norm_a * norm_b)
+    similarity = dot / (norm_a * norm_b)
+    # Clamp into the mathematically-valid closed interval [-1, 1]. The exact
+    # cosine of any two real vectors lies in [-1, 1], but denormal/near-zero
+    # magnitudes make norm_a*norm_b round low, pushing the ratio a few ULPs
+    # outside the range (observed 1.004... for a denormal component). This only
+    # absorbs that floating-point epsilon -- it never masks a logic error,
+    # because the true value is provably already within [-1, 1].
+    return max(-1.0, min(1.0, similarity))
 
 
 class DeterministicHashingEmbedder:
