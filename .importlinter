@@ -36,7 +36,9 @@ type = forbidden
 source_modules =
     autofirm.access
     autofirm.audit
+    autofirm.capabilities
     autofirm.comms
+    autofirm.costledger
     autofirm.decisions
     autofirm.finance
     autofirm.flow
@@ -44,6 +46,7 @@ source_modules =
     autofirm.frontdoor
     autofirm.heartbeat
     autofirm.memory
+    autofirm.modelgateway
     autofirm.orchestration
     autofirm.org
     autofirm.substrate
