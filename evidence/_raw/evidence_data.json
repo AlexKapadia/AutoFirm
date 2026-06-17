@@ -1,0 +1,493 @@
+{
+  "test_count": 1331,
+  "coverage_totals": {
+    "line_pct": 99.64,
+    "statements": 4703,
+    "branches": 870
+  },
+  "per_package_coverage": {
+    "access": {
+      "line_pct": 100.0,
+      "branch_pct": 100.0,
+      "statements": 239
+    },
+    "artifacts": {
+      "line_pct": 100.0,
+      "branch_pct": 96.72,
+      "statements": 453
+    },
+    "audit": {
+      "line_pct": 99.38,
+      "branch_pct": 97.44,
+      "statements": 323
+    },
+    "autofirm": {
+      "line_pct": 100.0,
+      "branch_pct": 100.0,
+      "statements": 1
+    },
+    "comms": {
+      "line_pct": 100.0,
+      "branch_pct": 100.0,
+      "statements": 272
+    },
+    "decisions": {
+      "line_pct": 98.89,
+      "branch_pct": 96.77,
+      "statements": 271
+    },
+    "design_product": {
+      "line_pct": 100.0,
+      "branch_pct": 100.0,
+      "statements": 256
+    },
+    "document_store": {
+      "line_pct": 100.0,
+      "branch_pct": 100.0,
+      "statements": 89
+    },
+    "e2e": {
+      "line_pct": 99.53,
+      "branch_pct": 92.86,
+      "statements": 427
+    },
+    "finance": {
+      "line_pct": 100.0,
+      "branch_pct": 100.0,
+      "statements": 294
+    },
+    "flow": {
+      "line_pct": 99.26,
+      "branch_pct": 100.0,
+      "statements": 135
+    },
+    "foundation": {
+      "line_pct": 100.0,
+      "branch_pct": 100.0,
+      "statements": 40
+    },
+    "frontdoor": {
+      "line_pct": 100.0,
+      "branch_pct": 100.0,
+      "statements": 289
+    },
+    "heartbeat": {
+      "line_pct": 99.09,
+      "branch_pct": 93.75,
+      "statements": 110
+    },
+    "market_intel": {
+      "line_pct": 100.0,
+      "branch_pct": 98.08,
+      "statements": 304
+    },
+    "memory": {
+      "line_pct": 100.0,
+      "branch_pct": 100.0,
+      "statements": 305
+    },
+    "orchestration": {
+      "line_pct": 100.0,
+      "branch_pct": 100.0,
+      "statements": 182
+    },
+    "org": {
+      "line_pct": 100.0,
+      "branch_pct": 100.0,
+      "statements": 369
+    },
+    "substrate": {
+      "line_pct": 100.0,
+      "branch_pct": 100.0,
+      "statements": 344
+    }
+  },
+  "e2e": {
+    "total_scenarios": 4,
+    "scenarios_all_green": 4,
+    "total_checks": 60,
+    "checks_passed": 60,
+    "feature_order": [
+      "org_founded",
+      "gap_auto_create_hire",
+      "comms_wired",
+      "documents_filed",
+      "finance_statements",
+      "finance_valuation",
+      "pricing_decision",
+      "runway_decision",
+      "market_intel_sweep",
+      "green_light_gate",
+      "front_door_routing",
+      "artifact_generated",
+      "heartbeat_tick",
+      "flow_handoff",
+      "fail_closed_guard"
+    ],
+    "feature_matrix": {
+      "org_founded": 4,
+      "gap_auto_create_hire": 4,
+      "comms_wired": 4,
+      "documents_filed": 4,
+      "finance_statements": 4,
+      "finance_valuation": 4,
+      "pricing_decision": 4,
+      "runway_decision": 4,
+      "market_intel_sweep": 4,
+      "green_light_gate": 4,
+      "front_door_routing": 4,
+      "artifact_generated": 4,
+      "heartbeat_tick": 4,
+      "flow_handoff": 4,
+      "fail_closed_guard": 4
+    },
+    "grid": {
+      "northwind-saas": {
+        "org_founded": 1,
+        "gap_auto_create_hire": 1,
+        "comms_wired": 1,
+        "documents_filed": 1,
+        "finance_statements": 1,
+        "finance_valuation": 1,
+        "pricing_decision": 1,
+        "runway_decision": 1,
+        "market_intel_sweep": 1,
+        "green_light_gate": 1,
+        "front_door_routing": 1,
+        "artifact_generated": 1,
+        "heartbeat_tick": 1,
+        "flow_handoff": 1,
+        "fail_closed_guard": 1
+      },
+      "ironforge-mfg": {
+        "org_founded": 1,
+        "gap_auto_create_hire": 1,
+        "comms_wired": 1,
+        "documents_filed": 1,
+        "finance_statements": 1,
+        "finance_valuation": 1,
+        "pricing_decision": 1,
+        "runway_decision": 1,
+        "market_intel_sweep": 1,
+        "green_light_gate": 1,
+        "front_door_routing": 1,
+        "artifact_generated": 1,
+        "heartbeat_tick": 1,
+        "flow_handoff": 1,
+        "fail_closed_guard": 1
+      },
+      "brightcart-retail": {
+        "org_founded": 1,
+        "gap_auto_create_hire": 1,
+        "comms_wired": 1,
+        "documents_filed": 1,
+        "finance_statements": 1,
+        "finance_valuation": 1,
+        "pricing_decision": 1,
+        "runway_decision": 1,
+        "market_intel_sweep": 1,
+        "green_light_gate": 1,
+        "front_door_routing": 1,
+        "artifact_generated": 1,
+        "heartbeat_tick": 1,
+        "flow_handoff": 1,
+        "fail_closed_guard": 1
+      },
+      "solaris-energy": {
+        "org_founded": 1,
+        "gap_auto_create_hire": 1,
+        "comms_wired": 1,
+        "documents_filed": 1,
+        "finance_statements": 1,
+        "finance_valuation": 1,
+        "pricing_decision": 1,
+        "runway_decision": 1,
+        "market_intel_sweep": 1,
+        "green_light_gate": 1,
+        "front_door_routing": 1,
+        "artifact_generated": 1,
+        "heartbeat_tick": 1,
+        "flow_handoff": 1,
+        "fail_closed_guard": 1
+      }
+    },
+    "companies": [
+      {
+        "slug": "northwind-saas",
+        "name": "Northwind Analytics (SaaS)",
+        "industry": "B2B SaaS analytics",
+        "features_passed": 15,
+        "features_total": 15,
+        "all_green": true,
+        "evidence": {
+          "org_founded": {
+            "root_id": "ceo",
+            "events": "1"
+          },
+          "gap_auto_create_hire": {
+            "role": "fpa-lead",
+            "audit_kind": "ROLE_AUTO_CREATED"
+          },
+          "comms_wired": {
+            "delivery_status": "delivered",
+            "audited": "1"
+          },
+          "documents_filed": {
+            "relative_path": "northwind-saas/report/founding-charter/v1/founding-charter__northwind-analytics-saas-founding-charter.md"
+          },
+          "finance_statements": {
+            "net_income": "2600000.00",
+            "total_assets": "12600000.00",
+            "cash_net_change": "11100000.00"
+          },
+          "finance_valuation": {
+            "dcf_value": "37566256"
+          },
+          "pricing_decision": {
+            "recommended_price": "60",
+            "realised_margin": "0.70",
+            "binding_driver": "min_margin_floor"
+          },
+          "runway_decision": {
+            "runway_months": "60",
+            "action": "operations_self_sustaining"
+          },
+          "market_intel_sweep": {
+            "insights": "1",
+            "rejections": "0"
+          },
+          "green_light_gate": {
+            "verdict": "go",
+            "score": "1.5000"
+          },
+          "front_door_routing": {
+            "handler_role": "fpa-lead",
+            "outcome": "routed_to_capable_role"
+          },
+          "artifact_generated": {
+            "bytes": "37412",
+            "filed_path": "northwind-saas/report/investor-update/v1/investor-update__northwind-analytics-saas-investor-update.docx"
+          },
+          "heartbeat_tick": {
+            "fired": "('market-sweep',)",
+            "calls": "1"
+          },
+          "flow_handoff": {
+            "final_state": "DONE",
+            "transitions": "3"
+          },
+          "fail_closed_guard": {
+            "refused": "True"
+          }
+        }
+      },
+      {
+        "slug": "ironforge-mfg",
+        "name": "Ironforge Components (Manufacturing)",
+        "industry": "Industrial component manufacturing",
+        "features_passed": 15,
+        "features_total": 15,
+        "all_green": true,
+        "evidence": {
+          "org_founded": {
+            "root_id": "ceo",
+            "events": "1"
+          },
+          "gap_auto_create_hire": {
+            "role": "supply-chain-lead",
+            "audit_kind": "ROLE_AUTO_CREATED"
+          },
+          "comms_wired": {
+            "delivery_status": "delivered",
+            "audited": "1"
+          },
+          "documents_filed": {
+            "relative_path": "ironforge-mfg/report/founding-charter/v1/founding-charter__ironforge-components-manufacturing-founding-charter.md"
+          },
+          "finance_statements": {
+            "net_income": "6500000.00",
+            "total_assets": "31500000.00",
+            "cash_net_change": "19500000.00"
+          },
+          "finance_valuation": {
+            "dcf_value": "58157025"
+          },
+          "pricing_decision": {
+            "recommended_price": "540.0000",
+            "realised_margin": "0.55555555555555555555555555555555555555555555555556",
+            "binding_driver": "price_elasticity"
+          },
+          "runway_decision": {
+            "runway_months": "60",
+            "action": "operations_self_sustaining"
+          },
+          "market_intel_sweep": {
+            "insights": "1",
+            "rejections": "0"
+          },
+          "green_light_gate": {
+            "verdict": "go",
+            "score": "1.5000"
+          },
+          "front_door_routing": {
+            "handler_role": "supply-chain-lead",
+            "outcome": "routed_to_capable_role"
+          },
+          "artifact_generated": {
+            "bytes": "37423",
+            "filed_path": "ironforge-mfg/report/investor-update/v1/investor-update__ironforge-components-manufacturing-investor-update.docx"
+          },
+          "heartbeat_tick": {
+            "fired": "('market-sweep',)",
+            "calls": "1"
+          },
+          "flow_handoff": {
+            "final_state": "DONE",
+            "transitions": "3"
+          },
+          "fail_closed_guard": {
+            "refused": "True"
+          }
+        }
+      },
+      {
+        "slug": "brightcart-retail",
+        "name": "Brightcart (E-commerce Retail)",
+        "industry": "Direct-to-consumer e-commerce retail",
+        "features_passed": 15,
+        "features_total": 15,
+        "all_green": true,
+        "evidence": {
+          "org_founded": {
+            "root_id": "ceo",
+            "events": "1"
+          },
+          "gap_auto_create_hire": {
+            "role": "growth-marketing-lead",
+            "audit_kind": "ROLE_AUTO_CREATED"
+          },
+          "comms_wired": {
+            "delivery_status": "delivered",
+            "audited": "1"
+          },
+          "documents_filed": {
+            "relative_path": "brightcart-retail/report/founding-charter/v1/founding-charter__brightcart-e-commerce-retail-founding-charter.md"
+          },
+          "finance_statements": {
+            "net_income": "1900000.00",
+            "total_assets": "7900000.00",
+            "cash_net_change": "7100000.00"
+          },
+          "finance_valuation": {
+            "dcf_value": "11667202"
+          },
+          "pricing_decision": {
+            "recommended_price": "47.272727272727272727272727272727272727272727272727",
+            "realised_margin": "0.45000000000000000000000000000000000000000000000000",
+            "binding_driver": "min_margin_floor"
+          },
+          "runway_decision": {
+            "runway_months": "60",
+            "action": "operations_self_sustaining"
+          },
+          "market_intel_sweep": {
+            "insights": "1",
+            "rejections": "0"
+          },
+          "green_light_gate": {
+            "verdict": "go",
+            "score": "1.5000"
+          },
+          "front_door_routing": {
+            "handler_role": "ceo",
+            "outcome": "triaged_no_capable_role"
+          },
+          "artifact_generated": {
+            "bytes": "37421",
+            "filed_path": "brightcart-retail/report/investor-update/v1/investor-update__brightcart-e-commerce-retail-investor-update.docx"
+          },
+          "heartbeat_tick": {
+            "fired": "('market-sweep',)",
+            "calls": "1"
+          },
+          "flow_handoff": {
+            "final_state": "DONE",
+            "transitions": "3"
+          },
+          "fail_closed_guard": {
+            "refused": "True"
+          }
+        }
+      },
+      {
+        "slug": "solaris-energy",
+        "name": "Solaris Grid (Renewable Energy)",
+        "industry": "Renewable energy / utility",
+        "features_passed": 15,
+        "features_total": 15,
+        "all_green": true,
+        "evidence": {
+          "org_founded": {
+            "root_id": "ceo",
+            "events": "1"
+          },
+          "gap_auto_create_hire": {
+            "role": "regulatory-affairs-lead",
+            "audit_kind": "ROLE_AUTO_CREATED"
+          },
+          "comms_wired": {
+            "delivery_status": "delivered",
+            "audited": "1"
+          },
+          "documents_filed": {
+            "relative_path": "solaris-energy/report/founding-charter/v1/founding-charter__solaris-grid-renewable-energy-founding-charter.md"
+          },
+          "finance_statements": {
+            "net_income": "7000000.00",
+            "total_assets": "82000000.00",
+            "cash_net_change": "27000000.00"
+          },
+          "finance_valuation": {
+            "dcf_value": "130166895"
+          },
+          "pricing_decision": {
+            "recommended_price": "0.140",
+            "realised_margin": "0.71428571428571428571428571428571428571428571428571",
+            "binding_driver": "price_elasticity"
+          },
+          "runway_decision": {
+            "runway_months": "60",
+            "action": "operations_self_sustaining"
+          },
+          "market_intel_sweep": {
+            "insights": "1",
+            "rejections": "0"
+          },
+          "green_light_gate": {
+            "verdict": "go",
+            "score": "1.5000"
+          },
+          "front_door_routing": {
+            "handler_role": "regulatory-affairs-lead",
+            "outcome": "routed_to_capable_role"
+          },
+          "artifact_generated": {
+            "bytes": "37413",
+            "filed_path": "solaris-energy/report/investor-update/v1/investor-update__solaris-grid-renewable-energy-investor-update.docx"
+          },
+          "heartbeat_tick": {
+            "fired": "('market-sweep',)",
+            "calls": "1"
+          },
+          "flow_handoff": {
+            "final_state": "DONE",
+            "transitions": "3"
+          },
+          "fail_closed_guard": {
+            "refused": "True"
+          }
+        }
+      }
+    ]
+  }
+}
