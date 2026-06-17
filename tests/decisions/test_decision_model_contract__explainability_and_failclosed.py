@@ -50,12 +50,62 @@ def test_recommendation_with_drivers_is_accepted_and_primary_is_head() -> None:
     assert rec.primary_driver() is d0  # primary is always the ordered head
 
 
-@given(st.lists(st.text(min_size=1, max_size=8), min_size=1, max_size=6))
-def test_primary_driver_is_always_first_for_any_nonempty_ordering(labels: list[str]) -> None:
-    drivers = tuple(_driver(label=lbl) for lbl in labels)
+# A label the contract ACCEPTS: non-empty AFTER its strip-whitespace normalisation
+# (the _Label constraint strips then enforces min_length=1). Bare ``st.text`` is
+# wrong here -- it yields whitespace-only strings (e.g. '\x85') that the contract
+# legitimately REFUSES, so the model could never have built such a driver. We test
+# the ordering invariant over labels the contract can actually hold.
+_contract_label = st.text(
+    alphabet=st.characters(min_codepoint=33, max_codepoint=126),  # printable, non-whitespace
+    min_size=1,
+    max_size=8,
+)
+# Bounded, exact, finite, and explicitly INCLUDING distinct magnitudes so a head
+# driver can be made to carry a SMALLER contribution than a later one -- which is
+# exactly the case that catches a contract that silently re-ranks the explanation.
+_contract_contribution = st.decimals(
+    min_value=Decimal("-1e6"), max_value=Decimal("1e6"), allow_nan=False, allow_infinity=False
+)
+
+
+@given(
+    st.lists(
+        st.tuples(_contract_label, _contract_contribution),
+        min_size=1,
+        max_size=6,
+    )
+)
+def test_primary_driver_is_the_head_in_the_models_declared_order(
+    spec: list[tuple[str, Decimal]],
+) -> None:
+    # The contract is ORDER-PRESERVING: the model declares its drivers
+    # most-influential-first, and the contract MUST NOT silently re-rank them
+    # (that would let the "why" drift from the "what" the model decided -- §3.11).
+    drivers = tuple(
+        DecisionDriver(label=lbl, direction=DriverDirection.RAISES, contribution=c)
+        for lbl, c in spec
+    )
     rec = DecisionRecommendation(action="a", rationale="r", drivers=drivers)
-    # Invariant: primary driver == drivers[0] for ANY non-empty driver tuple.
-    assert rec.primary_driver() == drivers[0]
+    primary = rec.primary_driver()
+    # 1) primary() returns the SAME object the model put first -- not a copy, not a
+    #    re-sorted pick. Kills mutants that return drivers[-1], max()/min(), or
+    #    that reorder the tuple on construction.
+    assert primary is drivers[0]
+    # 2) Order is preserved end-to-end: the stored tuple is exactly as supplied,
+    #    even when a LATER driver has a strictly larger |contribution| than the
+    #    head. A contract that re-sorted by magnitude would fail this.
+    assert rec.drivers == drivers
+
+
+def test_primary_driver_stays_head_even_when_a_later_driver_is_larger() -> None:
+    # Deterministic, hand-built witness of the order-preserving invariant: the
+    # head's contribution (1) is strictly smaller in magnitude than a later
+    # driver's (99), yet the primary is still the head the model declared.
+    head = _driver(label="declared_primary", contribution="1")
+    bigger_later = _driver(label="bigger_but_secondary", contribution="99")
+    rec = DecisionRecommendation(action="a", rationale="r", drivers=(head, bigger_later))
+    assert rec.primary_driver() is head
+    assert rec.drivers == (head, bigger_later)  # never re-ranked by magnitude
 
 
 # -- fail-closed: non-finite contributions/metrics are refused --
