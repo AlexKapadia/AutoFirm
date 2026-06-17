@@ -150,15 +150,25 @@ def collect(test_count: int) -> dict[str, object]:
     }
 
 
-if __name__ == "__main__":
+def write_payload() -> dict[str, object]:
+    """Collect real evidence with the real test count and write it to disk.
+
+    Returns the payload so callers (the ``run_all`` orchestrator) can report it
+    without re-reading the file.
+    """
     payload = collect(test_count=_real_test_count())
     _OUT.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return payload
+
+
+if __name__ == "__main__":
+    written = write_payload()
     print(f"wrote {_OUT}")
-    print(f"  tests={payload['test_count']}")
-    cov = payload["coverage_totals"]
-    print(f"  coverage line%={cov['line_pct']} statements={cov['statements']}")
-    e2e = payload["e2e"]
+    print(f"  tests={written['test_count']}")
+    totals = written["coverage_totals"]
+    print(f"  coverage line%={totals['line_pct']} statements={totals['statements']}")
+    e2e_summary = written["e2e"]
     print(
-        f"  e2e companies={e2e['total_scenarios']} "
-        f"checks={e2e['checks_passed']}/{e2e['total_checks']}"
+        f"  e2e companies={e2e_summary['total_scenarios']} "
+        f"checks={e2e_summary['checks_passed']}/{e2e_summary['total_checks']}"
     )
