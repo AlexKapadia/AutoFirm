@@ -157,9 +157,11 @@ class ReviewFinding(BaseModel):
 CHECK_DEFECT_CLASSES: Mapping[ReviewCheckId, frozenset[DefectClass]] = MappingProxyType(
     {
         ReviewCheckId.ACCOUNTING_IDENTITY: frozenset({DefectClass.PURE_LOGIC}),
-        ReviewCheckId.SPEC_ROUND_TRIP: frozenset(
-            {DefectClass.MECHANICAL, DefectClass.PURE_LOGIC}
-        ),
+        # Round-trip is MECHANICAL-only: a declared-vs-extracted diff sees only surface
+        # mismatches (a dropped/garbled value), so it can never attribute an error to
+        # wrong domain logic — that attribution is NUMERIC_RECOMPUTE's job. The check
+        # accordingly only ever emits MECHANICAL, so its class home is {MECHANICAL}.
+        ReviewCheckId.SPEC_ROUND_TRIP: frozenset({DefectClass.MECHANICAL}),
         ReviewCheckId.NUMERIC_RECOMPUTE: frozenset({DefectClass.MECHANICAL}),
         ReviewCheckId.FILE_OPENS_CLEAN: frozenset({DefectClass.MECHANICAL}),
         ReviewCheckId.FAST_LINT: frozenset(
