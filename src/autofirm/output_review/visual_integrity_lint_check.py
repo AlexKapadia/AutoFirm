@@ -186,7 +186,7 @@ class VisualIntegrityLintCheck:
             )
         return tuple(findings)
 
-    @staticmethod
+    @staticmethod  # pragma: no mutate -- class-only call site; removing it is equivalent
     def _finding(element_id: str, message: str) -> ReviewFinding:
         """Build one BLOCKING / PURE_LOGIC finding located at ``element_id``."""
         return ReviewFinding(
