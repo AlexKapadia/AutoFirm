@@ -185,6 +185,14 @@ def test_spec_round_trip_rejects_blank_key() -> None:
         SpecRoundTrip(declared_values={"  ": "b"}, extracted_values={"a": "b"})
 
 
+def test_spec_round_trip_is_frozen() -> None:
+    # The round-trip bundle a check reads must be immutable (frozen=True): kills the
+    # frozen->False and model_config->None mutants on SpecRoundTrip's config.
+    rt = SpecRoundTrip(declared_values={"k": "v"}, extracted_values={"k": "v"})
+    with pytest.raises(ValidationError):
+        rt.declared_values = {"k": "x"}  # type: ignore[misc]
+
+
 # ---- model lint facts (FAST_LINT) ----------------------------------------------
 
 

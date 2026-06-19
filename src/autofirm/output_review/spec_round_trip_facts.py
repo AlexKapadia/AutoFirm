@@ -58,7 +58,9 @@ class SpecRoundTrip(BaseModel):
     extracted_values: Mapping[str, str]
 
     @field_validator("declared_values", "extracted_values")
-    @classmethod
+    # @classmethod removal is equivalent: pydantic v2 auto-wraps a @field_validator
+    # as a classmethod, so dropping the explicit decorator is behaviourally identical.
+    @classmethod  # pragma: no mutate
     def _non_empty_keys_non_blank(cls, value: Mapping[str, str]) -> Mapping[str, str]:
         if not value:
             # fail-closed: an empty map means "nothing to round-trip" — a check over
