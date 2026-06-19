@@ -19,7 +19,10 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from pydantic import ValidationError
 
-from autofirm.output_review.correction_loop_state import CorrectionLoopState
+from autofirm.output_review.correction_loop_state import (
+    CorrectionLoopState,
+    CorrectionSendBack,
+)
 from autofirm.output_review.output_review_errors import OutputReviewError
 from autofirm.output_review.review_finding_and_severity_contracts import (
     CheckSeverity,
@@ -30,6 +33,19 @@ from autofirm.output_review.review_finding_and_severity_contracts import (
 from autofirm.output_review.review_verdict_contract import ReviewVerdict
 
 _FIXED_AT = datetime(2024, 1, 1, tzinfo=UTC)  # injected clock — never now()
+
+
+def _finding(severity: CheckSeverity, idx: int = 0) -> ReviewFinding:
+    """A valid synthetic finding of a given severity (distinct locator per idx)."""
+    return ReviewFinding(
+        check_id=ReviewCheckId.ACCOUNTING_IDENTITY,
+        severity=severity,
+        defect_class=DefectClass.PURE_LOGIC,
+        message="A != L + E",
+        locator=f"Sheet1!B{idx}",
+        expected="A=100",
+        actual="L+E=99",
+    )
 
 
 def _failing_verdict(idx: int = 0) -> ReviewVerdict:
@@ -169,3 +185,117 @@ def test_property_advances_exactly_budget_then_exhausted(budget: int) -> None:
     # Beyond the bound is structurally impossible — never negative, never unbounded.
     with pytest.raises(OutputReviewError):
         state.record_and_advance(_failing_verdict(budget))
+
+
+# ---- EXACT message text — kill mutmut string-literal mutants (in != ==) ---------
+#
+# mutmut wraps each string literal as "XX...XX", which a substring `in` check would
+# still pass — so every message is pinned with `==` on the FULL string. The two
+# computed f-string numbers (max_attempts+1 and max_attempts) are pinned to concrete
+# values so a mutant flipping the arithmetic (+1 -> -1/+2) is killed too.
+
+
+def test_attempt_below_one_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        CorrectionLoopState(attempt=0, max_attempts=3)
+    assert str(excinfo.value) == "CorrectionLoopState attempt must be >= 1"
+
+
+def test_max_attempts_below_one_message_is_exact() -> None:
+    # attempt=1 is valid, so the failure is specifically the max_attempts guard.
+    with pytest.raises(OutputReviewError) as excinfo:
+        CorrectionLoopState(attempt=1, max_attempts=0)
+    assert str(excinfo.value) == "CorrectionLoopState max_attempts must be >= 1"
+
+
+def test_attempt_out_of_range_message_is_exact_with_computed_ceiling() -> None:
+    # attempt=6, max_attempts=3 -> ceiling sentinel is 4; the message must spell out
+    # both the literal text AND the computed max_attempts+1=4 exactly (a +1->-1/+2
+    # mutant inside the f-string changes the number and is killed by this ==).
+    with pytest.raises(OutputReviewError) as excinfo:
+        CorrectionLoopState(attempt=6, max_attempts=3)
+    assert str(excinfo.value) == (
+        "CorrectionLoopState attempt out of range: attempt=6 > max_attempts+1=4"
+    )
+
+
+def test_budget_exhausted_message_is_exact_with_max_attempts() -> None:
+    # Exhausted state (attempt=2 > max_attempts=1); advancing must refuse with the
+    # exact message carrying the concrete max_attempts=1 value.
+    exhausted = CorrectionLoopState(attempt=2, max_attempts=1)
+    with pytest.raises(OutputReviewError) as excinfo:
+        exhausted.record_and_advance(_failing_verdict(0))
+    assert str(excinfo.value) == (
+        "CorrectionLoopState budget exhausted: cannot advance past max_attempts=1"
+    )
+
+
+# ---- default-value mutant: `history: ... = ()` -> `= None` ----------------------
+
+
+def test_history_defaults_to_empty_tuple_not_none() -> None:
+    # Omitting history must yield an empty TUPLE, not None — kills the `= None`
+    # default mutant (which would either set None or fail construction outright).
+    state = CorrectionLoopState(attempt=1, max_attempts=3)
+    assert state.history == ()
+    assert isinstance(state.history, tuple)
+
+
+# ---- boundary: budget_exhausted on/just-under, just-over (exact == comparator) --
+
+
+def test_budget_exhausted_is_false_one_below_ceiling() -> None:
+    # attempt = max_attempts-1 < max_attempts: clearly not exhausted (guards a
+    # `>` -> `>=` mutant from the just-under side).
+    assert CorrectionLoopState(attempt=2, max_attempts=3).budget_exhausted is False
+
+
+# ---- CorrectionSendBack EXACT message text (same module) — string-mutant kills --
+
+
+def test_send_back_blank_ref_message_is_exact() -> None:
+    # Other fields valid so the blank-ref guard is the sole failure surfaced.
+    with pytest.raises(OutputReviewError) as excinfo:
+        CorrectionSendBack(
+            artifact_ref="  ",
+            blocking_findings=(_finding(CheckSeverity.BLOCKING),),
+            attempt=1,
+        )
+    assert str(excinfo.value) == "CorrectionSendBack artifact_ref must be non-blank"
+
+
+def test_send_back_sub_one_attempt_message_is_exact() -> None:
+    # Ref + findings valid; only the attempt guard should fire.
+    with pytest.raises(OutputReviewError) as excinfo:
+        CorrectionSendBack(
+            artifact_ref="art-1",
+            blocking_findings=(_finding(CheckSeverity.BLOCKING),),
+            attempt=0,
+        )
+    assert str(excinfo.value) == "CorrectionSendBack attempt must be >= 1"
+
+
+def test_send_back_empty_findings_message_is_exact_two_part() -> None:
+    # The two adjacent string literals are concatenated into ONE message; pin the
+    # whole joined string so a mutant on EITHER literal half is killed.
+    with pytest.raises(OutputReviewError) as excinfo:
+        CorrectionSendBack(artifact_ref="art-1", blocking_findings=(), attempt=1)
+    assert str(excinfo.value) == (
+        "CorrectionSendBack.blocking_findings must be non-empty: "
+        "you never send back a passing artifact"
+    )
+
+
+def test_send_back_advisory_member_message_is_exact_two_part() -> None:
+    # Non-empty but carries an ADVISORY finding -> the ONLY-BLOCKING guard fires;
+    # pin the full concatenated two-literal message.
+    with pytest.raises(OutputReviewError) as excinfo:
+        CorrectionSendBack(
+            artifact_ref="art-1",
+            blocking_findings=(_finding(CheckSeverity.ADVISORY),),
+            attempt=1,
+        )
+    assert str(excinfo.value) == (
+        "CorrectionSendBack.blocking_findings must contain ONLY BLOCKING "
+        "findings: advisory findings do not justify a send-back"
+    )

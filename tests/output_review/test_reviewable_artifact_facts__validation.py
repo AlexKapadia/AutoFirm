@@ -291,3 +291,258 @@ def test_property_any_float_is_refused(bad: float) -> None:
             declared_value=bad,  # type: ignore[arg-type]
             recomputed_value=Decimal("1"),
         )
+
+
+# =================================================================================
+# EXACT-MESSAGE PINS (mutmut wraps string literals in XX..XX, so a substring check
+# would NOT kill the mutant — every message below is asserted with FULL ``==``).
+# =================================================================================
+
+# The single shared float/bool refusal message (fact_value_guards.reject_float_input).
+_FLOAT_MSG = (
+    "monetary/numeric fields forbid float/bool input (exactness, §3.11); "
+    "pass Decimal, int, or a numeric string"
+)
+
+
+# ---- fact_value_guards.reject_float_input — exact message on EVERY money field ---
+
+
+@pytest.mark.parametrize("field", ["assets", "liabilities", "equity"])
+def test_period_float_message_is_exact(field: str) -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        _period(**{field: 0.1})
+    assert str(excinfo.value) == _FLOAT_MSG
+
+
+@pytest.mark.parametrize("field", ["assets", "liabilities", "equity"])
+def test_period_bool_message_is_exact(field: str) -> None:
+    # bool is an int subclass — refused with the SAME exact message.
+    with pytest.raises(OutputReviewError) as excinfo:
+        _period(**{field: True})
+    assert str(excinfo.value) == _FLOAT_MSG
+
+
+@pytest.mark.parametrize("field", ["declared_value", "recomputed_value"])
+def test_claim_float_message_is_exact(field: str) -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        _claim(**{field: 0.1})
+    assert str(excinfo.value) == _FLOAT_MSG
+
+
+@pytest.mark.parametrize("field", ["declared_value", "recomputed_value"])
+def test_claim_bool_message_is_exact(field: str) -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        _claim(**{field: False})
+    assert str(excinfo.value) == _FLOAT_MSG
+
+
+# ---- require_non_blank — exact "{field} must be non-blank" per call site ---------
+
+
+def test_period_blank_label_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        _period(period="   ")
+    assert str(excinfo.value) == "BalanceSheetPeriod.period must be non-blank"
+
+
+def test_claim_blank_label_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        _claim(label="\t")
+    assert str(excinfo.value) == "NumericClaim.label must be non-blank"
+
+
+def test_row_formula_blank_label_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        ModelRowFormulaFacts(row_label="  ", formula_consistent=True)
+    assert str(excinfo.value) == "ModelRowFormulaFacts.row_label must be non-blank"
+
+
+def test_orphan_cell_blank_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        ModelLintFacts(orphan_constant_cells=("",))
+    assert (
+        str(excinfo.value)
+        == "ModelLintFacts.orphan_constant_cells entry must be non-blank"
+    )
+
+
+def test_present_line_item_blank_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        ModelLintFacts(present_line_items=frozenset({"  "}))
+    assert str(excinfo.value) == "ModelLintFacts line-item name must be non-blank"
+
+
+def test_expected_line_item_blank_message_is_exact() -> None:
+    # The SAME validator guards expected_line_items — pin it from that field too.
+    with pytest.raises(OutputReviewError) as excinfo:
+        ModelLintFacts(expected_line_items=frozenset({"\n"}))
+    assert str(excinfo.value) == "ModelLintFacts line-item name must be non-blank"
+
+
+@pytest.mark.parametrize("field", ["element_id", "element_kind"])
+def test_deck_element_blank_message_is_exact(field: str) -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        _element(**{field: "   "})
+    assert str(excinfo.value) == "DeckElementFacts id/kind must be non-blank"
+
+
+def test_spec_round_trip_blank_key_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        SpecRoundTrip(declared_values={"  ": "b"}, extracted_values={"a": "b"})
+    assert str(excinfo.value) == "SpecRoundTrip map key must be non-blank"
+
+
+# ---- non-empty / uniqueness model-validator messages — exact ``==`` --------------
+
+
+def test_balance_sheet_empty_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        BalanceSheetFigures(periods=())
+    assert str(excinfo.value) == "BalanceSheetFigures.periods must be non-empty"
+
+
+def test_balance_sheet_duplicate_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        BalanceSheetFigures(periods=(_period(period="FY24"), _period(period="FY24")))
+    assert str(excinfo.value) == "BalanceSheetFigures period labels must be unique"
+
+
+def test_claim_set_empty_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        NumericClaimSet(claims=())
+    assert str(excinfo.value) == "NumericClaimSet.claims must be non-empty"
+
+
+def test_claim_set_duplicate_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        NumericClaimSet(claims=(_claim(label="m"), _claim(label="m")))
+    assert str(excinfo.value) == "NumericClaimSet claim labels must be unique"
+
+
+def test_deck_empty_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        DeckStructuralFacts(elements=())
+    assert str(excinfo.value) == "DeckStructuralFacts.elements must be non-empty"
+
+
+def test_deck_duplicate_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        DeckStructuralFacts(
+            elements=(_element(element_id="dup"), _element(element_id="dup"))
+        )
+    assert str(excinfo.value) == "DeckStructuralFacts element ids must be unique"
+
+
+def test_spec_round_trip_empty_declared_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        SpecRoundTrip(declared_values={}, extracted_values={"a": "b"})
+    assert str(excinfo.value) == "SpecRoundTrip value maps must be non-empty"
+
+
+def test_spec_round_trip_empty_extracted_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as excinfo:
+        SpecRoundTrip(declared_values={"a": "b"}, extracted_values={})
+    assert str(excinfo.value) == "SpecRoundTrip value maps must be non-empty"
+
+
+# =================================================================================
+# DEFAULT-VALUE MUTANTS — mutmut flips ``()``/``frozenset()`` defaults to ``None``.
+# Omit each optional field and pin BOTH the value and its concrete empty type.
+# =================================================================================
+
+
+def test_model_lint_orphan_cells_default_is_empty_tuple() -> None:
+    m = ModelLintFacts()
+    assert m.orphan_constant_cells == ()
+    assert isinstance(m.orphan_constant_cells, tuple)
+
+
+def test_model_lint_rows_default_is_empty_tuple() -> None:
+    m = ModelLintFacts()
+    assert m.rows == ()
+    assert isinstance(m.rows, tuple)
+
+
+def test_model_lint_present_items_default_is_empty_frozenset() -> None:
+    m = ModelLintFacts()
+    assert m.present_line_items == frozenset()
+    assert isinstance(m.present_line_items, frozenset)
+
+
+def test_model_lint_expected_items_default_is_empty_frozenset() -> None:
+    m = ModelLintFacts()
+    assert m.expected_line_items == frozenset()
+    assert isinstance(m.expected_line_items, frozenset)
+
+
+# ---- per-element bool flag defaults (deck) — each pinned INDIVIDUALLY -------------
+
+
+def test_deck_element_has_notation_defaults_false() -> None:
+    assert _element().has_notation is False
+
+
+def test_deck_element_has_units_defaults_false() -> None:
+    assert _element().has_units is False
+
+
+def test_deck_element_has_overlap_defaults_false() -> None:
+    assert _element().has_overlap is False
+
+
+def test_deck_element_has_clipping_defaults_false() -> None:
+    assert _element().has_clipping is False
+
+
+def test_deck_element_axis_truncated_defaults_false() -> None:
+    assert _element().axis_truncated is False
+
+
+# =================================================================================
+# BOUNDARY — on / just-over / just-under for every non-empty + uniqueness gate.
+# A 1-element collection is ACCEPTED (just-over empty); two DISTINCT accepted;
+# two IDENTICAL refused. Proves the validator is not a no-op and not over-strict.
+# =================================================================================
+
+
+def test_balance_sheet_one_period_accepted_boundary() -> None:
+    bs = BalanceSheetFigures(periods=(_period(period="FY24"),))
+    assert len(bs.periods) == 1
+
+
+def test_balance_sheet_two_distinct_accepted_boundary() -> None:
+    bs = BalanceSheetFigures(periods=(_period(period="FY23"), _period(period="FY24")))
+    assert len(bs.periods) == 2
+
+
+def test_claim_set_one_claim_accepted_boundary() -> None:
+    cs = NumericClaimSet(claims=(_claim(label="only"),))
+    assert len(cs.claims) == 1
+
+
+def test_claim_set_two_distinct_accepted_boundary() -> None:
+    cs = NumericClaimSet(claims=(_claim(label="a"), _claim(label="b")))
+    assert len(cs.claims) == 2
+
+
+def test_deck_one_element_accepted_boundary() -> None:
+    deck = DeckStructuralFacts(elements=(_element(element_id="only#1"),))
+    assert len(deck.elements) == 1
+
+
+def test_spec_round_trip_single_key_accepted_boundary() -> None:
+    rt = SpecRoundTrip(declared_values={"k": "v"}, extracted_values={"k": "v"})
+    assert rt.declared_values["k"] == "v"
+
+
+# ---- int/Decimal/str ACCEPTED on money fields (just-under the float boundary) -----
+
+
+def test_money_fields_accept_int_and_decimal_and_str() -> None:
+    # reject_float_input must pass int/Decimal/str through untouched — proving it
+    # rejects ONLY float/bool, not all numerics (no over-strict mutant survives).
+    p = _period(assets=7, liabilities=Decimal("3"), equity="4")
+    assert p.assets == Decimal("7")
+    assert p.liabilities == Decimal("3")
+    assert p.equity == Decimal("4")

@@ -104,6 +104,20 @@ def test_passing_verdict_with_only_advisory_refused() -> None:
         build_correction_send_back(advisory_only, attempt=1)
 
 
+def test_passing_verdict_refusal_message_is_exact_with_repr_ref() -> None:
+    # EXACT full message — kills mutmut string-literal mutants (a substring `in`
+    # check would pass "XX...XX"). The artifact_ref is interpolated via !r, so the
+    # repr quotes ('art-7') and the em-dash must both appear verbatim.
+    passing = _verdict()  # no findings -> passes -> nothing to correct
+    assert passing.passed is True
+    with pytest.raises(OutputReviewError) as excinfo:
+        build_correction_send_back(passing, attempt=1)
+    assert str(excinfo.value) == (
+        "build_correction_send_back: cannot send back a PASSING verdict "
+        "(artifact_ref='art-7') — nothing to correct"
+    )
+
+
 # ---- CorrectionSendBack construction guards (fail-closed) -----------------------
 
 
