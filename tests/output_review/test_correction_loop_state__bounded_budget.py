@@ -299,3 +299,27 @@ def test_send_back_advisory_member_message_is_exact_two_part() -> None:
         "CorrectionSendBack.blocking_findings must contain ONLY BLOCKING "
         "findings: advisory findings do not justify a send-back"
     )
+
+
+def test_send_back_attempt_one_is_accepted_boundary() -> None:
+    # The just-over boundary: attempt == 1 is the MINIMUM valid attempt and must be
+    # accepted. Without this, mutating ``< 1`` to ``<= 1`` or ``< 2`` (which would
+    # wrongly reject attempt 1) goes undetected — pin the boundary on the valid side.
+    sb = CorrectionSendBack(
+        artifact_ref="art-1",
+        blocking_findings=(_finding(CheckSeverity.BLOCKING),),
+        attempt=1,
+    )
+    assert sb.attempt == 1
+
+
+def test_send_back_is_frozen_cannot_mutate_attempt() -> None:
+    # If the record were not frozen, a caller could rewrite ``attempt`` after the
+    # 1-based guard ran, corrupting the audited send-back routing.
+    sb = CorrectionSendBack(
+        artifact_ref="art-1",
+        blocking_findings=(_finding(CheckSeverity.BLOCKING),),
+        attempt=2,
+    )
+    with pytest.raises(ValidationError):
+        sb.attempt = 5  # frozen=True forbids post-construction mutation
