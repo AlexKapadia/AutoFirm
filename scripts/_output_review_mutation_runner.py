@@ -39,17 +39,24 @@ if __name__ == "__main__":
         ]
     )
     # Fail-closed exit-code normalisation (THE bug this fixes). mutmut grades a
-    # mutant "killed" only when the runner returns exactly 1; ANY other code is
-    # read as "tests passed -> survived". But pytest returns 2 for a COLLECTION
-    # error -- which is exactly what a mutant that breaks the module's import (an
-    # invalid pydantic config value, a decorator on a non-existent field, an
-    # invalid model_validator mode, etc.) produces. Such a mutant makes the whole
-    # suite fail to even load, so it is a GENUINE kill, yet mutmut's default would
-    # mis-record it as a survivor. We therefore collapse the result to the only
-    # honest distinction the gate needs: clean pass (rc == 0) is the sole survival
-    # signal; every other outcome (assertion failure rc==1, collection/usage error
-    # rc==2, no-tests rc==5, internal error rc==3) means the suite did NOT cleanly
-    # pass under this mutant -> return 1 so mutmut records a true kill. This never
-    # manufactures a false kill (a real survivor still exits 0) and never weakens a
-    # check -- it corrects mutmut's known mis-classification of error-as-survival.
-    raise SystemExit(0 if rc == 0 else 1)
+    # mutant "killed" only when the runner returns exactly 1 (see mutmut/__init__.py
+    # tests_pass: ``return returncode != 1``); ANY other code is read as "tests
+    # passed -> survived". pytest returns 2 for a COLLECTION error -- exactly what a
+    # mutant that breaks the module's import (an invalid pydantic config value, a
+    # decorator on a non-existent field, an invalid model_validator mode, etc.)
+    # produces. Such a mutant makes the whole suite fail to even load, so it is a
+    # GENUINE kill, yet mutmut's default would mis-record it as a survivor. We
+    # therefore map: clean pass (rc == 0) is the SOLE survival signal -> exit 0;
+    # assertion failure (rc==1), collection/usage error (rc==2), internal error
+    # (rc==3) all mean the suite did NOT cleanly pass under this mutant -> exit 1
+    # so mutmut records a true kill.
+    #
+    # rc == 5 (NO TESTS COLLECTED) is the dangerous case the North Star flagged: a
+    # mis-set MUT_TESTS that points at a path collecting zero tests must NEVER be
+    # graded a kill, or every mutant would be falsely "killed" (a false-green gate
+    # -- CLAUDE.md §3.6/§7.2 "never widen the killed-set"). We map rc==5 to exit 2:
+    # NOT 1, so mutmut never records a kill; NOT 0, so it is not confused with a
+    # genuine survival -- mutmut reads exit 2 as "survived", which surfaces EVERY
+    # mutant as a survivor and FAILS the gate loudly, forcing the operator to fix
+    # MUT_TESTS. Fail-closed: a runner that collected no tests proves nothing.
+    raise SystemExit(0 if rc == 0 else (2 if rc == 5 else 1))
