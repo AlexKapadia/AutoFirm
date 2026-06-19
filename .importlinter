@@ -55,3 +55,46 @@ forbidden_modules =
     openpyxl
     pptx
     docx
+
+# The CLI framework (typer/click) is a runtime-EDGE dependency of the W3 activation
+# layer (B7). It may be imported ONLY by autofirm.runtime.cli_entrypoint -- the single
+# Typer app. Every OTHER runtime package (the deterministic engine core AND the rest of
+# autofirm.runtime) is a source here, so a stray `import typer` anywhere else fails the
+# gate rather than leaking a CLI framework into the engine (system-activation-design.md
+# §7; CLAUDE.md §5.7). cli_entrypoint is deliberately NOT a source, so it alone may import.
+[importlinter:contract:cli-framework-confined-to-cli-entrypoint]
+name = CLI framework (typer/click) confined to the single cli_entrypoint module
+type = forbidden
+source_modules =
+    autofirm.access
+    autofirm.audit
+    autofirm.bootstrap
+    autofirm.capabilities
+    autofirm.comms
+    autofirm.costledger
+    autofirm.decisions
+    autofirm.finance
+    autofirm.flow
+    autofirm.foundation
+    autofirm.frontdoor
+    autofirm.heartbeat
+    autofirm.knowledge
+    autofirm.market_intel
+    autofirm.memory
+    autofirm.modelgateway
+    autofirm.orchestration
+    autofirm.org
+    autofirm.substrate
+    autofirm.runtime.activation_bootstrap_steps
+    autofirm.runtime.activation_commands
+    autofirm.runtime.capability_probe_factories
+    autofirm.runtime.egress_capability_factories
+    autofirm.runtime.knowledge_capability_factories
+    autofirm.runtime.platform_composition_root
+    autofirm.runtime.platform_config
+    autofirm.runtime.platform_readiness_selftest
+    autofirm.runtime.platform_runtime
+    autofirm.runtime.platform_supervisor
+forbidden_modules =
+    typer
+    click
