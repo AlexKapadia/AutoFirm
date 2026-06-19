@@ -7,6 +7,7 @@ state (independence — plan §B.3), and synthetic-only value maps carried by va
 
 from __future__ import annotations
 
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,10 @@ from autofirm.output_review.output_review_errors import OutputReviewError
 from autofirm.output_review.reviewable_artifact_contract import (
     ArtifactKind,
     ReviewableArtifact,
+)
+from autofirm.output_review.reviewable_artifact_facts import (
+    NumericClaim,
+    NumericClaimSet,
 )
 
 
@@ -33,10 +38,19 @@ def _valid(**over: object) -> ReviewableArtifact:
 
 def test_valid_artifact_constructs() -> None:
     a = _valid(
-        recomputed_values={"rev_fy24": "100"}, declared_values={"rev_fy24": "100"}
+        numeric_claims=NumericClaimSet(
+            claims=(
+                NumericClaim(
+                    label="rev_fy24",
+                    declared_value=Decimal("100"),
+                    recomputed_value=Decimal("100"),
+                ),
+            )
+        )
     )
     assert a.kind is ArtifactKind.FINANCIAL_MODEL
-    assert a.recomputed_values == {"rev_fy24": "100"}
+    assert a.numeric_claims is not None
+    assert a.numeric_claims.claims[0].label == "rev_fy24"
 
 
 @pytest.mark.parametrize("blank", ["", "   ", "\t"])
@@ -64,8 +78,11 @@ def test_extra_field_forbidden() -> None:
 def test_optional_fields_default_none() -> None:
     a = _valid()
     assert a.originating_spec is None
-    assert a.recomputed_values is None
-    assert a.declared_values is None
+    assert a.balance_sheet is None
+    assert a.numeric_claims is None
+    assert a.spec_round_trip is None
+    assert a.model_lint is None
+    assert a.deck_facts is None
 
 
 def test_arbitrary_spec_object_accepted_opaquely() -> None:

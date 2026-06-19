@@ -15,6 +15,7 @@ from pydantic import ValidationError
 
 from autofirm.output_review.output_review_errors import OutputReviewError
 from autofirm.output_review.review_finding_and_severity_contracts import (
+    CHECK_DEFECT_CLASSES,
     CheckSeverity,
     DefectClass,
     ReviewCheckId,
@@ -98,36 +99,52 @@ def test_defect_class_encodes_panko_halverson_taxonomy() -> None:
     }
 
 
-# ---- coverage matrix: every planned DETERMINISTIC check maps to >=1 class ------
-# SYNTHESIS §3 maps each Panko-Halverson class to the deterministic checks that must
-# kill it. EUREKA is the residue only MODEL_ADVISORY reaches. This sanity matrix
-# proves no deterministic check id is left without a defect-class home.
-
-_CHECK_TO_CLASSES: dict[ReviewCheckId, set[DefectClass]] = {
-    ReviewCheckId.ACCOUNTING_IDENTITY: {DefectClass.PURE_LOGIC},
-    ReviewCheckId.SPEC_ROUND_TRIP: {DefectClass.MECHANICAL, DefectClass.PURE_LOGIC},
-    ReviewCheckId.NUMERIC_RECOMPUTE: {DefectClass.MECHANICAL},
-    ReviewCheckId.FILE_OPENS_CLEAN: {DefectClass.MECHANICAL},
-    ReviewCheckId.FAST_LINT: {DefectClass.MECHANICAL, DefectClass.OMISSION},
-    ReviewCheckId.IBCS_SUCCESS: {DefectClass.PURE_LOGIC},
-    ReviewCheckId.VISUAL_INTEGRITY: {DefectClass.PURE_LOGIC},
-    ReviewCheckId.MODEL_ADVISORY: {DefectClass.EUREKA},
-}
+# ---- the CANONICAL runtime map CHECK_DEFECT_CLASSES (SYNTHESIS §3, src 03) ------
+# Promoted out of this test matrix into the contract module so the gate and the
+# evidence showcase share ONE source of truth. These tests pin the canonical map's
+# totality + validity; a wrong/partial map would FAIL them (no tautology).
 
 
-def test_every_check_id_maps_to_at_least_one_defect_class() -> None:
-    # Every member of the closed check set must have a defect-class home (omission
-    # defence: an unmapped check would mean a defect class with no detector).
-    assert set(_CHECK_TO_CLASSES) == set(ReviewCheckId)
-    for check_id, classes in _CHECK_TO_CLASSES.items():
+def test_check_defect_classes_is_total_over_every_check_id() -> None:
+    # Omission defence: EVERY closed-set ReviewCheckId must have a defect-class home;
+    # a missing key would mean a check class with no detector. Totality, both ways.
+    assert set(CHECK_DEFECT_CLASSES) == set(ReviewCheckId)
+
+
+def test_check_defect_classes_every_value_is_nonempty_frozenset_of_valid_classes() -> None:
+    valid = set(DefectClass)
+    for check_id, classes in CHECK_DEFECT_CLASSES.items():
+        assert isinstance(classes, frozenset), f"{check_id} value is not a frozenset"
         assert classes, f"{check_id} maps to no defect class"
+        assert classes <= valid, f"{check_id} maps an unknown defect class: {classes - valid}"
+
+
+def test_check_defect_classes_is_immutable() -> None:
+    # The canonical map must not be mutable at runtime (a swapped class would silently
+    # mis-route detection). MappingProxyType refuses item assignment.
+    with pytest.raises(TypeError):
+        CHECK_DEFECT_CLASSES[ReviewCheckId.FAST_LINT] = frozenset()  # type: ignore[index]
 
 
 def test_eureka_residue_only_reached_by_model_advisory() -> None:
     # SYNTHESIS §4: EUREKA is the sole class the deterministic floor cannot reach;
     # only the add-only advisory layer claims it.
-    reaching = {cid for cid, cls in _CHECK_TO_CLASSES.items() if DefectClass.EUREKA in cls}
+    reaching = {
+        cid for cid, cls in CHECK_DEFECT_CLASSES.items() if DefectClass.EUREKA in cls
+    }
     assert reaching == {ReviewCheckId.MODEL_ADVISORY}
+
+
+def test_deterministic_floor_covers_must_block_classes() -> None:
+    # SYNTHESIS §2.2/§3: the deterministic floor (every check except MODEL_ADVISORY)
+    # must between them reach MECHANICAL, PURE_LOGIC and OMISSION — the must-block set.
+    floor = {
+        cid for cid in CHECK_DEFECT_CLASSES if cid is not ReviewCheckId.MODEL_ADVISORY
+    }
+    covered: set[DefectClass] = set()
+    for cid in floor:
+        covered |= CHECK_DEFECT_CLASSES[cid]
+    assert {DefectClass.MECHANICAL, DefectClass.PURE_LOGIC, DefectClass.OMISSION} <= covered
 
 
 @settings(max_examples=200)

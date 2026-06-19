@@ -33,6 +33,7 @@ from __future__ import annotations
 from autofirm.output_review.output_review_errors import OutputReviewError
 from autofirm.output_review.review_check_protocol import CheckRegistry, ReviewCheck
 from autofirm.output_review.review_finding_and_severity_contracts import (
+    CHECK_DEFECT_CLASSES,
     CheckSeverity,
     DefectClass,
     ReviewCheckId,
@@ -43,16 +44,37 @@ from autofirm.output_review.reviewable_artifact_contract import (
     ArtifactKind,
     ReviewableArtifact,
 )
+from autofirm.output_review.reviewable_artifact_facts import (
+    BalanceSheetFigures,
+    BalanceSheetPeriod,
+    DeckElementFacts,
+    DeckStructuralFacts,
+    ModelLintFacts,
+    ModelRowFormulaFacts,
+    NumericClaim,
+    NumericClaimSet,
+    SpecRoundTrip,
+)
 
 __all__ = [
+    "CHECK_DEFECT_CLASSES",
     "ArtifactKind",
+    "BalanceSheetFigures",
+    "BalanceSheetPeriod",
     "CheckRegistry",
     "CheckSeverity",
+    "DeckElementFacts",
+    "DeckStructuralFacts",
     "DefectClass",
+    "ModelLintFacts",
+    "ModelRowFormulaFacts",
+    "NumericClaim",
+    "NumericClaimSet",
     "OutputReviewError",
     "ReviewCheck",
     "ReviewCheckId",
     "ReviewFinding",
     "ReviewVerdict",
     "ReviewableArtifact",
+    "SpecRoundTrip",
 ]

@@ -8,42 +8,57 @@ from. It carries:
 
 * ``kind`` — what the artifact is (spreadsheet model / slide deck / document), so a
   check can decline kinds it does not apply to.
-* ``path`` — where the built file lives on disk (the bytes the structural checks read).
-* ``originating_spec`` — the builder spec the artifact was generated from, so a
-  spec<->artifact round-trip check can prove every declared value is present & correct.
-* ``recomputed_values`` / ``declared_values`` — the value maps the deterministic
-  numeric checks compare exactly (recomputed formula results vs the file's cached
-  values; declared spec figures vs what was written) — CLAUDE.md §3.11.
+* ``path`` — where the built file lives on disk (the bytes the FILE_OPENS_CLEAN probe
+  reads); together with ``kind`` it is everything that check needs.
+* ``originating_spec`` — the builder spec the artifact was generated from; kept
+  OPAQUE (``object``) so ``output_review`` never imports an artifacts-lane spec type
+  and stays fully decoupled. The round-trip check reads the by-value
+  :class:`~autofirm.output_review.reviewable_artifact_facts.SpecRoundTrip` instead.
+* the five typed, by-value, frozen fact bundles the deterministic checks read —
+  populated by the CALLER, never derived here — one per check family:
+  ``balance_sheet`` (ACCOUNTING_IDENTITY), ``numeric_claims`` (NUMERIC_RECOMPUTE),
+  ``spec_round_trip`` (SPEC_ROUND_TRIP), ``model_lint`` (FAST_LINT), and
+  ``deck_facts`` (IBCS_SUCCESS + VISUAL_INTEGRITY). Each is optional (``None`` when
+  the check does not apply to this ``kind``), so a check refuses fail-closed if its
+  fact bundle is absent.
 
 Why it exists / where it sits
 -----------------------------
-``SYNTHESIS.md`` §2.2 makes the deterministic floor a *pure function of (file bytes
-+ spec)*. This contract is exactly that input bundle, passed by value (frozen) so a
-check cannot mutate the artifact under another check (independence — plan §B.3). It
-sits upstream of every check and the gate that composes them.
+``SYNTHESIS.md`` §2.2 makes the deterministic floor a *pure function of by-value
+data*. This contract is exactly that input bundle, passed by value (frozen) so a
+check cannot mutate the artifact under another check (independence — plan §B.3), and
+so the seven P1 checks can be built in parallel as PURE functions with no further
+contract edits. It sits upstream of every check and the gate that composes them.
 
 Security / compliance invariants upheld (CLAUDE.md §5.6, §3.12)
 --------------------------------------------------------------
-* **No real PII — synthetic/opaque only:** the value maps hold opaque, synthetic,
-  string-keyed scalars (the recomputed/declared figures the checks compare), never
-  real client data or document bytes. Real artifact content stays on disk behind
-  ``path``; this handle never inlines it.
+* **No real PII — synthetic/opaque only:** the fact bundles hold opaque, synthetic,
+  string-keyed scalars / Decimals / flags, never real client data or document bytes.
+  Real artifact content stays on disk behind ``path``; this handle never inlines it.
+* **Decoupled:** ``originating_spec`` is opaque ``object`` — ``output_review`` imports
+  no artifacts-lane type, so the contract surface is frozen against external churn.
 * **Fail closed on blanks / missing file context:** a blank ``artifact_ref`` is
-  refused at construction; ``path`` is a real ``Path`` (type-checked), so a check
-  that needs the file cannot be handed an empty reference.
+  refused at construction; ``path`` is a real ``Path`` (type-checked), so the
+  FILE_OPENS_CLEAN probe can never be handed an empty reference.
 * **Frozen & immutable:** checks receive the same handle and cannot mutate shared
   state, so the gate's composition of independent checks stays deterministic.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from enum import StrEnum
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from autofirm.output_review.output_review_errors import OutputReviewError
+from autofirm.output_review.reviewable_artifact_facts import (
+    BalanceSheetFigures,
+    DeckStructuralFacts,
+    ModelLintFacts,
+    NumericClaimSet,
+    SpecRoundTrip,
+)
 
 __all__ = [
     "ArtifactKind",
@@ -71,12 +86,18 @@ class ReviewableArtifact(BaseModel):
     ------
     * ``artifact_ref`` — opaque, stable reference to the artifact (e.g. a content
       hash or store key) used in verdicts and audit records — never raw content.
-    * ``kind`` — the :class:`ArtifactKind`.
-    * ``path`` — on-disk location of the built file the structural checks read.
-    * ``originating_spec`` — the builder spec; opaque to the contract layer (the
-      round-trip check knows its concrete shape). Optional for kinds without a spec.
-    * ``recomputed_values`` — recomputed formula results, by opaque key (synthetic).
-    * ``declared_values`` — values the spec declared / the file cached, by opaque key.
+    * ``kind`` — the :class:`ArtifactKind` (with ``path``, all FILE_OPENS_CLEAN needs).
+    * ``path`` — on-disk location of the built file the FILE_OPENS_CLEAN probe reads.
+    * ``originating_spec`` — the builder spec; OPAQUE ``object`` so this layer imports
+      no artifacts-lane type. Optional for kinds without a spec; the round-trip check
+      reads ``spec_round_trip`` (by value), never this object.
+    * ``balance_sheet`` — :class:`BalanceSheetFigures` for ACCOUNTING_IDENTITY.
+    * ``numeric_claims`` — :class:`NumericClaimSet` for NUMERIC_RECOMPUTE.
+    * ``spec_round_trip`` — :class:`SpecRoundTrip` for SPEC_ROUND_TRIP.
+    * ``model_lint`` — :class:`ModelLintFacts` for FAST_LINT.
+    * ``deck_facts`` — :class:`DeckStructuralFacts` for IBCS_SUCCESS + VISUAL_INTEGRITY.
+    Each fact bundle is optional (``None`` when the check does not apply to ``kind``);
+    a check that needs an absent bundle refuses fail-closed in P1.
 
     Failure modes
     -------------
@@ -92,8 +113,11 @@ class ReviewableArtifact(BaseModel):
     kind: ArtifactKind
     path: Path
     originating_spec: object | None = None
-    recomputed_values: Mapping[str, object] | None = None
-    declared_values: Mapping[str, object] | None = None
+    balance_sheet: BalanceSheetFigures | None = None
+    numeric_claims: NumericClaimSet | None = None
+    spec_round_trip: SpecRoundTrip | None = None
+    model_lint: ModelLintFacts | None = None
+    deck_facts: DeckStructuralFacts | None = None
 
     @field_validator("artifact_ref")
     @classmethod

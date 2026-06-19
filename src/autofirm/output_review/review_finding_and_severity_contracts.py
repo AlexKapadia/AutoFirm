@@ -37,13 +37,16 @@ Security / compliance invariants upheld (CLAUDE.md §5.6)
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from enum import StrEnum
+from types import MappingProxyType
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from autofirm.output_review.output_review_errors import OutputReviewError
 
 __all__ = [
+    "CHECK_DEFECT_CLASSES",
     "CheckSeverity",
     "DefectClass",
     "ReviewCheckId",
@@ -138,3 +141,32 @@ class ReviewFinding(BaseModel):
         if not value or not value.strip():
             raise OutputReviewError("ReviewFinding message and locator must be non-blank")
         return value
+
+
+# ---------------------------------------------------------------------------------
+# CANONICAL Panko-Halverson check->defect-class map (SYNTHESIS.md §3, src 03).
+# Promoted out of the test matrix to a single runtime source of truth so the
+# ``evidence/`` showcase can report a per-class defect-detection rate (SYNTHESIS §5)
+# against the SAME mapping the gate is built around — never a parallel copy that
+# could drift. The deterministic floor must KILL the MECHANICAL / PURE_LOGIC /
+# OMISSION classes (§2.2); EUREKA is the sole residue only the add-only
+# MODEL_ADVISORY layer reaches (§4). The map is TOTAL over ``ReviewCheckId`` — every
+# closed-set check has a defect-class home (omission defence: a check with no class
+# would mean a defect class with no detector).
+# ---------------------------------------------------------------------------------
+CHECK_DEFECT_CLASSES: Mapping[ReviewCheckId, frozenset[DefectClass]] = MappingProxyType(
+    {
+        ReviewCheckId.ACCOUNTING_IDENTITY: frozenset({DefectClass.PURE_LOGIC}),
+        ReviewCheckId.SPEC_ROUND_TRIP: frozenset(
+            {DefectClass.MECHANICAL, DefectClass.PURE_LOGIC}
+        ),
+        ReviewCheckId.NUMERIC_RECOMPUTE: frozenset({DefectClass.MECHANICAL}),
+        ReviewCheckId.FILE_OPENS_CLEAN: frozenset({DefectClass.MECHANICAL}),
+        ReviewCheckId.FAST_LINT: frozenset(
+            {DefectClass.MECHANICAL, DefectClass.OMISSION}
+        ),
+        ReviewCheckId.IBCS_SUCCESS: frozenset({DefectClass.PURE_LOGIC}),
+        ReviewCheckId.VISUAL_INTEGRITY: frozenset({DefectClass.PURE_LOGIC}),
+        ReviewCheckId.MODEL_ADVISORY: frozenset({DefectClass.EUREKA}),
+    }
+)
