@@ -75,7 +75,7 @@ class CorrectionSendBack(BaseModel):
     attempt: int
 
     @field_validator("artifact_ref")
-    @classmethod  # pragma: no mutate  # equivalent: pydantic v2 auto-wraps validators, so removing @classmethod is behaviourally identical (the validator still fires)
+    @classmethod  # pragma: no mutate (equivalent: pydantic v2 auto-wraps the validator)
     def _non_blank_ref(cls, value: str) -> str:
         # fail-closed: a send-back for an unidentifiable artifact cannot be routed.
         if not value or not value.strip():
@@ -83,7 +83,7 @@ class CorrectionSendBack(BaseModel):
         return value
 
     @field_validator("attempt")
-    @classmethod  # pragma: no mutate  # equivalent: pydantic v2 auto-wraps validators, so removing @classmethod is behaviourally identical (the validator still fires)
+    @classmethod  # pragma: no mutate (equivalent: pydantic v2 auto-wraps the validator)
     def _attempt_at_least_one(cls, value: int) -> int:
         # fail-closed: attempts are 1-based; a 0/negative attempt is incoherent.
         if value < 1:
@@ -91,7 +91,7 @@ class CorrectionSendBack(BaseModel):
         return value
 
     @field_validator("blocking_findings")
-    @classmethod  # pragma: no mutate  # equivalent: pydantic v2 auto-wraps validators, so removing @classmethod is behaviourally identical (the validator still fires)
+    @classmethod  # pragma: no mutate (equivalent: pydantic v2 auto-wraps the validator)
     def _all_blocking_and_non_empty(
         cls, value: tuple[ReviewFinding, ...]
     ) -> tuple[ReviewFinding, ...]:
@@ -141,7 +141,7 @@ class CorrectionLoopState(BaseModel):
     history: tuple[ReviewVerdict, ...] = ()
 
     @field_validator("attempt")
-    @classmethod  # pragma: no mutate  # equivalent: pydantic v2 auto-wraps validators, so removing @classmethod is behaviourally identical (the validator still fires)
+    @classmethod  # pragma: no mutate (equivalent: pydantic v2 auto-wraps the validator)
     def _attempt_at_least_one(cls, value: int) -> int:
         # fail-closed: the loop is 1-based; attempt 0/negative is incoherent.
         if value < 1:
@@ -149,7 +149,7 @@ class CorrectionLoopState(BaseModel):
         return value
 
     @field_validator("max_attempts")
-    @classmethod  # pragma: no mutate  # equivalent: pydantic v2 auto-wraps validators, so removing @classmethod is behaviourally identical (the validator still fires)
+    @classmethod  # pragma: no mutate (equivalent: pydantic v2 auto-wraps the validator)
     def _max_attempts_at_least_one(cls, value: int) -> int:
         # fail-closed: a budget of < 1 attempt could never review anything.
         if value < 1:
