@@ -293,6 +293,21 @@ def test_deck_constructs_with_distinct_elements() -> None:
     assert deck.elements[1].axis_truncated is True
 
 
+def test_deck_element_facts_is_frozen() -> None:
+    # The per-element fact unit a check reads must be immutable (frozen=True): kills
+    # the frozen->False and model_config->None mutants on DeckElementFacts's config.
+    with pytest.raises(ValidationError):
+        _element().has_overlap = True  # type: ignore[misc]
+
+
+def test_deck_structural_facts_is_frozen() -> None:
+    # The deck-wide inventory must be immutable too: kills the frozen->False and
+    # model_config->None mutants on DeckStructuralFacts's config.
+    deck = DeckStructuralFacts(elements=(_element(),))
+    with pytest.raises(ValidationError):
+        deck.elements = ()  # type: ignore[misc]
+
+
 # ---- determinism ---------------------------------------------------------------
 
 

@@ -65,7 +65,9 @@ class DeckElementFacts(BaseModel):
     axis_truncated: bool = False
 
     @field_validator("element_id", "element_kind")
-    @classmethod
+    # @classmethod removal is equivalent: pydantic v2 auto-wraps a @field_validator
+    # as a classmethod, so dropping the explicit decorator is behaviourally identical.
+    @classmethod  # pragma: no mutate
     def _ids_non_blank(cls, value: str) -> str:
         return require_non_blank(value, field="DeckElementFacts id/kind")
 
