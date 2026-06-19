@@ -134,7 +134,10 @@ class ReviewFinding(BaseModel):
     actual: str | None = None
 
     @field_validator("message", "locator")
-    @classmethod
+    # @classmethod is redundant here: pydantic v2 auto-wraps a @field_validator
+    # function as a classmethod, so removing the explicit decorator is behaviourally
+    # identical -- an equivalent mutant no test can distinguish.
+    @classmethod  # pragma: no mutate
     def _non_blank(cls, value: str) -> str:
         # fail-closed: a blank message/locator makes the defect un-actionable and
         # un-auditable — refuse it rather than emit a finding nobody can act on.
