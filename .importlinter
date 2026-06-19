@@ -45,6 +45,7 @@ source_modules =
     autofirm.foundation
     autofirm.frontdoor
     autofirm.heartbeat
+    autofirm.knowledge
     autofirm.memory
     autofirm.modelgateway
     autofirm.orchestration
