@@ -162,3 +162,109 @@ def test_property_any_valid_enum_combo_constructs(
         check_id=cid, severity=sev, defect_class=dc, message=msg, locator="L1"
     )
     assert f.check_id is cid and f.severity is sev and f.defect_class is dc
+
+
+# ---- EXACT error-message pins (kill string-literal XX..XX mutants) ----------------
+# A substring `in` check cannot kill a string-literal mutant ("XXfooXX" still contains
+# "foo"); only an exact `==` on the FULL message does. The validator raises ONE shared
+# message for blank message AND blank locator — pin it from both trigger paths.
+
+_NON_BLANK_MESSAGE = "ReviewFinding message and locator must be non-blank"
+
+
+def test_blank_message_exact_error_text() -> None:
+    with pytest.raises(OutputReviewError) as exc:
+        _valid(message="   ")
+    assert str(exc.value) == _NON_BLANK_MESSAGE
+
+
+def test_blank_locator_exact_error_text() -> None:
+    with pytest.raises(OutputReviewError) as exc:
+        _valid(locator="")
+    assert str(exc.value) == _NON_BLANK_MESSAGE
+
+
+# ---- EXACT enum value strings (kill the per-member value-literal mutants) ---------
+# mutmut wraps each member's value string; assert every member's `.value` exactly so a
+# single altered value string FAILS here (a set-of-values check is weaker per-member).
+
+
+def test_check_severity_member_values_exact() -> None:
+    assert CheckSeverity.BLOCKING.value == "BLOCKING"
+    assert CheckSeverity.ADVISORY.value == "ADVISORY"
+
+
+def test_review_check_id_member_values_exact() -> None:
+    assert ReviewCheckId.ACCOUNTING_IDENTITY.value == "ACCOUNTING_IDENTITY"
+    assert ReviewCheckId.SPEC_ROUND_TRIP.value == "SPEC_ROUND_TRIP"
+    assert ReviewCheckId.NUMERIC_RECOMPUTE.value == "NUMERIC_RECOMPUTE"
+    assert ReviewCheckId.FILE_OPENS_CLEAN.value == "FILE_OPENS_CLEAN"
+    assert ReviewCheckId.FAST_LINT.value == "FAST_LINT"
+    assert ReviewCheckId.IBCS_SUCCESS.value == "IBCS_SUCCESS"
+    assert ReviewCheckId.VISUAL_INTEGRITY.value == "VISUAL_INTEGRITY"
+    assert ReviewCheckId.MODEL_ADVISORY.value == "MODEL_ADVISORY"
+
+
+def test_defect_class_member_values_exact() -> None:
+    assert DefectClass.MECHANICAL.value == "MECHANICAL"
+    assert DefectClass.PURE_LOGIC.value == "PURE_LOGIC"
+    assert DefectClass.EUREKA.value == "EUREKA"
+    assert DefectClass.OMISSION.value == "OMISSION"
+
+
+def test_enum_member_sets_are_complete_no_extra_no_missing() -> None:
+    # Pin the exact membership of each closed set so an added/removed member FAILS.
+    assert set(CheckSeverity) == {CheckSeverity.BLOCKING, CheckSeverity.ADVISORY}
+    assert set(ReviewCheckId) == {
+        ReviewCheckId.ACCOUNTING_IDENTITY,
+        ReviewCheckId.SPEC_ROUND_TRIP,
+        ReviewCheckId.NUMERIC_RECOMPUTE,
+        ReviewCheckId.FILE_OPENS_CLEAN,
+        ReviewCheckId.FAST_LINT,
+        ReviewCheckId.IBCS_SUCCESS,
+        ReviewCheckId.VISUAL_INTEGRITY,
+        ReviewCheckId.MODEL_ADVISORY,
+    }
+    assert set(DefectClass) == {
+        DefectClass.MECHANICAL,
+        DefectClass.PURE_LOGIC,
+        DefectClass.EUREKA,
+        DefectClass.OMISSION,
+    }
+
+
+# ---- EXACT canonical map (kill per-entry mutations of CHECK_DEFECT_CLASSES) -------
+# The earlier tests pin totality/validity but not the EXACT class set per key; mutmut
+# could swap a value (e.g. drop OMISSION from FAST_LINT) and survive them. Pin the
+# COMPLETE map, every key -> exact frozenset, so any altered entry FAILS.
+
+_EXPECTED_CHECK_DEFECT_CLASSES = {
+    ReviewCheckId.ACCOUNTING_IDENTITY: frozenset({DefectClass.PURE_LOGIC}),
+    ReviewCheckId.SPEC_ROUND_TRIP: frozenset({DefectClass.MECHANICAL}),
+    ReviewCheckId.NUMERIC_RECOMPUTE: frozenset({DefectClass.MECHANICAL}),
+    ReviewCheckId.FILE_OPENS_CLEAN: frozenset({DefectClass.MECHANICAL}),
+    ReviewCheckId.FAST_LINT: frozenset({DefectClass.MECHANICAL, DefectClass.OMISSION}),
+    ReviewCheckId.IBCS_SUCCESS: frozenset({DefectClass.PURE_LOGIC}),
+    ReviewCheckId.VISUAL_INTEGRITY: frozenset({DefectClass.PURE_LOGIC}),
+    ReviewCheckId.MODEL_ADVISORY: frozenset({DefectClass.EUREKA}),
+}
+
+
+def test_check_defect_classes_equals_exact_expected_map() -> None:
+    # Whole-map equality: keys AND every value frozenset must match exactly.
+    assert dict(CHECK_DEFECT_CLASSES) == _EXPECTED_CHECK_DEFECT_CLASSES
+
+
+@pytest.mark.parametrize(
+    ("check_id", "classes"), list(_EXPECTED_CHECK_DEFECT_CLASSES.items())
+)
+def test_check_defect_classes_per_key_exact_frozenset(
+    check_id: ReviewCheckId, classes: frozenset[DefectClass]
+) -> None:
+    # Per-key exact frozenset: a single swapped/added/dropped class FAILS exactly one.
+    assert CHECK_DEFECT_CLASSES[check_id] == classes
+
+
+def test_check_defect_classes_keys_exactly_review_check_id() -> None:
+    # Totality both directions, pinned independently of the values above.
+    assert set(CHECK_DEFECT_CLASSES) == set(ReviewCheckId)

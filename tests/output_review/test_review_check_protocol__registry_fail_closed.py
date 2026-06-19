@@ -150,3 +150,82 @@ def test_property_first_registration_wins_duplicates_rejected(
             seen.add(cid)
     assert set(reg.ids()) == seen
     assert len(reg) == len(seen)
+
+
+# ---- EXACT fail-closed error messages (kill the string-literal XX..XX mutants) ----
+# A substring `in` check cannot kill a wrapped string literal; assert the FULL message
+# == , including the f-string `{check_id!r}` repr (which is `<ReviewCheckId.X: 'X'>`).
+
+
+def test_duplicate_registration_exact_error_text() -> None:
+    reg = CheckRegistry()
+    reg.register(_StubCheck(ReviewCheckId.FAST_LINT))
+    with pytest.raises(OutputReviewError) as exc:
+        reg.register(_StubCheck(ReviewCheckId.FAST_LINT))
+    expected = "duplicate registration for check id " + repr(ReviewCheckId.FAST_LINT)
+    assert str(exc.value) == expected
+    # Pin the concrete repr so a change to either the literal or the `!r` is caught.
+    assert str(exc.value) == (
+        "duplicate registration for check id <ReviewCheckId.FAST_LINT: 'FAST_LINT'>"
+    )
+
+
+def test_unknown_lookup_exact_error_text() -> None:
+    reg = CheckRegistry()
+    with pytest.raises(OutputReviewError) as exc:
+        reg.get(ReviewCheckId.ACCOUNTING_IDENTITY)
+    expected = "no check registered for id " + repr(ReviewCheckId.ACCOUNTING_IDENTITY)
+    assert str(exc.value) == expected
+    assert str(exc.value) == (
+        "no check registered for id "
+        "<ReviewCheckId.ACCOUNTING_IDENTITY: 'ACCOUNTING_IDENTITY'>"
+    )
+
+
+# ---- Registry behaviour pins (__len__, __contains__, ids() order, get identity) ---
+
+
+def test_empty_registry_len_zero_and_no_ids() -> None:
+    reg = CheckRegistry()
+    assert len(reg) == 0
+    assert reg.ids() == ()
+
+
+def test_len_tracks_each_distinct_registration() -> None:
+    reg = CheckRegistry()
+    assert len(reg) == 0
+    reg.register(_StubCheck(ReviewCheckId.FAST_LINT))
+    assert len(reg) == 1
+    reg.register(_StubCheck(ReviewCheckId.IBCS_SUCCESS))
+    assert len(reg) == 2
+
+
+def test_contains_true_only_for_registered_id() -> None:
+    reg = CheckRegistry()
+    reg.register(_StubCheck(ReviewCheckId.FAST_LINT))
+    assert (ReviewCheckId.FAST_LINT in reg) is True
+    assert (ReviewCheckId.IBCS_SUCCESS in reg) is False
+
+
+def test_ids_exact_order_and_full_tuple() -> None:
+    reg = CheckRegistry()
+    order = (
+        ReviewCheckId.MODEL_ADVISORY,
+        ReviewCheckId.FAST_LINT,
+        ReviewCheckId.NUMERIC_RECOMPUTE,
+        ReviewCheckId.ACCOUNTING_IDENTITY,
+    )
+    for cid in order:
+        reg.register(_StubCheck(cid))
+    # Registration order preserved exactly (not sorted, not reversed).
+    assert reg.ids() == order
+
+
+def test_get_returns_the_exact_registered_instance() -> None:
+    reg = CheckRegistry()
+    first = _StubCheck(ReviewCheckId.FAST_LINT)
+    second = _StubCheck(ReviewCheckId.IBCS_SUCCESS)
+    reg.register(first)
+    reg.register(second)
+    assert reg.get(ReviewCheckId.FAST_LINT) is first
+    assert reg.get(ReviewCheckId.IBCS_SUCCESS) is second

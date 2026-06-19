@@ -227,3 +227,62 @@ def test_property_clone_passes_and_single_mutation_fails(
     assert findings[0].locator == target
     assert findings[0].severity is CheckSeverity.BLOCKING
     assert findings[0].defect_class is DefectClass.MECHANICAL
+
+
+# ---- EXACT diff-message strings (kill string-literal mutants) -------------------
+#
+# mutmut wraps every string literal in XX...XX; the existing single-defect tests pin
+# locator/expected/actual but never the `.message`. These pin each of the three diff
+# messages with `==` so a mutated message literal fails the test.
+
+
+def test_altered_value_message_is_exact() -> None:
+    """An altered round-tripped value emits the EXACT 'altered' message (``==``)."""
+    (finding,) = SpecRoundTripCheck().run(
+        _artifact({"rev": "100"}, {"rev": "999"})
+    )
+    assert finding.message == "spec value altered in artifact"
+    assert finding.expected == "100"
+    assert finding.actual == "999"
+
+
+def test_missing_declared_key_message_is_exact() -> None:
+    """A dropped declared key emits the EXACT 'missing' message, with ``<absent>`` actual."""
+    (finding,) = SpecRoundTripCheck().run(
+        _artifact({"title": "Q4", "rev": "100"}, {"title": "Q4"})
+    )
+    assert finding.locator == "rev"
+    assert finding.message == "declared spec value missing from artifact"
+    assert finding.expected == "100"
+    assert finding.actual == "<absent>"
+
+
+def test_extra_extracted_key_message_is_exact() -> None:
+    """An unexpected extra key emits the EXACT 'extra' message, with ``<absent>`` expected."""
+    (finding,) = SpecRoundTripCheck().run(
+        _artifact({"title": "Q4"}, {"title": "Q4", "ghost": "x"})
+    )
+    assert finding.locator == "ghost"
+    assert finding.message == "artifact carries value not in spec"
+    assert finding.expected == "<absent>"
+    assert finding.actual == "x"
+
+
+def test_sorted_union_order_is_non_trivial_across_all_three_diff_kinds() -> None:
+    """Findings iterate the SORTED union of keys, not insertion order, across kinds.
+
+    declared insertion order is z,a,m and extracted adds 'b' (extra); the offending
+    keys 'a' (altered), 'm' (dropped), 'b' (extra) and 'z' (altered) must surface as
+    the sorted union ['a','b','m','z'] — proving ``sorted(declared|extracted)`` rather
+    than either dict's order, and that each diff branch participates in that ordering.
+    """
+    declared = {"z": "1", "a": "2", "m": "3", "ok": "same"}
+    extracted = {"z": "9", "a": "8", "ok": "same", "b": "x"}  # m dropped, b extra
+    findings = SpecRoundTripCheck().run(_artifact(declared, extracted))
+    assert [f.locator for f in findings] == ["a", "b", "m", "z"]
+    assert [f.message for f in findings] == [
+        "spec value altered in artifact",      # a: 2 -> 8
+        "artifact carries value not in spec",  # b: extra
+        "declared spec value missing from artifact",  # m: dropped
+        "spec value altered in artifact",      # z: 1 -> 9
+    ]

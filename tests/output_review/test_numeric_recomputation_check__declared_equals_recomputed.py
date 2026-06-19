@@ -312,3 +312,32 @@ def test_property_finding_count_equals_mismatch_count(
         wrong_labels.append(label)
     out = NumericRecomputationCheck().run(_model(tuple(claims)))
     assert [f.locator for f in out] == wrong_labels
+
+
+# ---- EXACT finding-message strings (kill string-literal mutants) ---------------
+#
+# mutmut wraps every string literal in XX...XX; a substring `in` check survives that.
+# These pin the FULL message with `==` so a single mutated character fails the test.
+
+
+def test_mismatch_message_is_exact_full_string() -> None:
+    """A declared!=recomputed claim's message is the EXACT literal (``==``)."""
+    (finding,) = NumericRecomputationCheck().run(
+        _model((_claim("gm", Decimal("100"), Decimal("99")),))
+    )
+    assert finding.message == (
+        "declared figure does not match independent recomputation (exact to the unit)"
+    )
+    assert finding.expected == "recomputed=99"
+    assert finding.actual == "declared=100"
+
+
+def test_absent_facts_message_is_exact_full_string() -> None:
+    """The fail-closed message is the EXACT literal (``==``), not a substring match."""
+    (finding,) = NumericRecomputationCheck().run(
+        _model(None, ref="artifact#missing-facts")
+    )
+    assert finding.message == "numeric-claim facts absent — cannot verify"
+    assert finding.locator == "artifact#missing-facts"
+    assert finding.expected is None
+    assert finding.actual is None

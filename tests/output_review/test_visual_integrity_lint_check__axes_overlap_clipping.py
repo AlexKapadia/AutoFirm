@@ -345,3 +345,32 @@ def test_finding_count_equals_total_tripped_flags(
         if clip:
             expected_stream.append((f"slide#{i}", _CLIPPING_MSG))
     assert [(f.locator, f.message) for f in findings] == expected_stream
+
+
+# --------------------------------------------------------------------------------- #
+# Per-finding check_id is pinned everywhere (absent-finding gap + multi-flag).
+# --------------------------------------------------------------------------------- #
+def test_absent_finding_carries_the_visual_integrity_check_id() -> None:
+    """The fail-closed finding's check_id is VISUAL_INTEGRITY (not asserted elsewhere)."""
+    artifact = ReviewableArtifact(
+        artifact_ref="orphan-deck",
+        kind=ArtifactKind.SLIDE_DECK,
+        path=Path("/synthetic/empty.pptx"),
+        deck_facts=None,
+    )
+    (finding,) = VisualIntegrityLintCheck().run(artifact)
+    assert finding.check_id is ReviewCheckId.VISUAL_INTEGRITY
+
+
+def test_all_three_findings_carry_the_visual_integrity_check_id() -> None:
+    """Every per-flag finding stamps check_id == VISUAL_INTEGRITY (kills id mutants)."""
+    element = _element(
+        element_id="slide#9/chart#1",
+        axis_truncated=True,
+        has_overlap=True,
+        has_clipping=True,
+    )
+    findings = VisualIntegrityLintCheck().run(_deck(element))
+    assert all(f.check_id is ReviewCheckId.VISUAL_INTEGRITY for f in findings)
+    # expected/actual are unused by this check — pin them so a stray field would fail.
+    assert all(f.expected is None and f.actual is None for f in findings)

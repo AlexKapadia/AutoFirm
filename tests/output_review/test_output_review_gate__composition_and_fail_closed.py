@@ -461,3 +461,63 @@ def test_property_passed_iff_no_blocking_finding_over_assorted_artifacts(
         )
 
     _check()
+
+
+# ---------------------------------------------------------------------------------
+# EXACT-MESSAGE pins (kill string-literal mutants: mutmut wraps literals in XX..XX,
+# so a substring/`in` check passes the mutant — only a full `==` on the EXACT text
+# kills it). The text is hard-coded here, NOT imported from the module constant: a
+# test that imported the constant would compare a mutated value to itself and the
+# mutant would survive. These would FAIL if a single character of either message
+# (or the !r-quoting / exception-type interpolation) were altered.
+# ---------------------------------------------------------------------------------
+def test_empty_registry_refusal_message_is_exact(tmp_path: Path) -> None:
+    gate = OutputReviewGate(CheckRegistry(), _fixed_clock)
+
+    with pytest.raises(OutputReviewError) as exc_info:
+        gate.review(_financial_model(_existing_file(tmp_path)))
+
+    # Full literal — any mutation of _EMPTY_REGISTRY_MESSAGE breaks this equality.
+    assert str(exc_info.value) == (
+        "output-review gate has no registered checks — a gate with no checks would "
+        "vacuously pass every artifact (fail-closed)"
+    )
+
+
+def test_crash_finding_message_is_exact_with_quoted_id_and_exc_type(
+    tmp_path: Path,
+) -> None:
+    registry = CheckRegistry()
+    # A distinctive exception type (KeyError) so the {type(exc).__name__} interpolation
+    # is pinned: a substring check on "KeyError" would survive the literal mutants
+    # (the type name comes from the runtime expression, not a literal), so we assert
+    # the WHOLE message. The id is rendered with !r => single-quoted 'MODEL_ADVISORY'.
+    registry.register(_StubCheck(ReviewCheckId.MODEL_ADVISORY, exc=KeyError("k")))
+    gate = OutputReviewGate(registry, _fixed_clock)
+
+    verdict = gate.review(_financial_model(_existing_file(tmp_path)))
+
+    assert len(verdict.findings) == 1
+    assert verdict.findings[0].message == (
+        "check 'MODEL_ADVISORY' raised KeyError during review — "
+        "treated as a BLOCKING defect (fail-closed)"
+    )
+
+
+def test_crash_finding_message_tracks_a_different_exc_type_and_id(
+    tmp_path: Path,
+) -> None:
+    # Second concrete pair (FAST_LINT + ValueError) proves the message tracks BOTH
+    # interpolated slots, not a frozen constant: a different check id and a different
+    # exception type must both appear, exactly, in the rendered message.
+    registry = CheckRegistry()
+    registry.register(_StubCheck(ReviewCheckId.FAST_LINT, exc=ValueError("v")))
+    gate = OutputReviewGate(registry, _fixed_clock)
+
+    verdict = gate.review(_financial_model(_existing_file(tmp_path)))
+
+    assert len(verdict.findings) == 1
+    assert verdict.findings[0].message == (
+        "check 'FAST_LINT' raised ValueError during review — "
+        "treated as a BLOCKING defect (fail-closed)"
+    )

@@ -343,3 +343,79 @@ def test_property_authorised_iff_passed_and_outcome_matches(verdict: ReviewVerdi
     assert decision.authorised == verdict.passed
     expected = AuditOutcome.SUCCESS if verdict.passed else AuditOutcome.DENY
     assert sink.calls[0]["outcome"] is expected
+
+
+# ================================================================================
+# 9. EXACT-MESSAGE pins (kill string-literal mutants). mutmut wraps every string
+# literal in XX..XX, so an `in`/substring assertion passes the mutant; only a full
+# `==` on the EXACT text kills it. The text is hard-coded (never imported from the
+# module) so a test can't compare a mutated literal to itself. Each would FAIL if a
+# single character — or the !r-quoting of the supplied/derived pair — changed.
+# ================================================================================
+def test_blank_reason_refusal_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as exc_info:
+        ReleaseDecision(
+            artifact_ref="art-1",
+            final_verdict=_passing_verdict(),
+            reason="   ",
+            decided_at=_FIXED_AT,
+        )
+    assert str(exc_info.value) == (
+        "ReleaseDecision artifact_ref and reason must be non-blank"
+    )
+
+
+def test_blank_artifact_ref_refusal_message_is_exact() -> None:
+    with pytest.raises(OutputReviewError) as exc_info:
+        ReleaseDecision(
+            artifact_ref="  ",
+            final_verdict=_passing_verdict(),
+            reason="ok",
+            decided_at=_FIXED_AT,
+        )
+    assert str(exc_info.value) == (
+        "ReleaseDecision artifact_ref and reason must be non-blank"
+    )
+
+
+def test_false_pass_refusal_message_is_exact_true_over_failing() -> None:
+    # Concrete supplied/derived pair: authorised=True over a FAILING verdict
+    # (derived=False). The message must render the pair with !r => `True` / `False`.
+    with pytest.raises(OutputReviewError) as exc_info:
+        ReleaseDecision(
+            artifact_ref="art-1",
+            final_verdict=_failing_verdict(),
+            reason="forced",
+            decided_at=_FIXED_AT,
+            authorised=True,
+        )
+    assert str(exc_info.value) == (
+        "ReleaseDecision.authorised must equal final_verdict.passed; "
+        "supplied=True, derived=False"
+    )
+
+
+def test_false_pass_refusal_message_is_exact_false_over_passing() -> None:
+    # The symmetric pair: authorised=False over a PASSING verdict (derived=True).
+    # Pins that BOTH interpolated slots track their real values, exactly.
+    with pytest.raises(OutputReviewError) as exc_info:
+        ReleaseDecision(
+            artifact_ref="art-1",
+            final_verdict=_passing_verdict(),
+            reason="forced",
+            decided_at=_FIXED_AT,
+            authorised=False,
+        )
+    assert str(exc_info.value) == (
+        "ReleaseDecision.authorised must equal final_verdict.passed; "
+        "supplied=False, derived=True"
+    )
+
+
+def test_audit_failure_refusal_message_is_exact() -> None:
+    sink = _RaisingSink()
+    with pytest.raises(OutputReviewError) as exc_info:
+        _gate(sink).decide(_passing_verdict(), reason="would-have-passed")
+    assert str(exc_info.value) == (
+        "release blocked: audit write failed — an unaudited release is forbidden"
+    )

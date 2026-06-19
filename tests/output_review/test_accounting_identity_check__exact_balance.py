@@ -283,3 +283,78 @@ def test_metamorphic_scaling_an_unbalanced_sheet_stays_unbalanced(
     findings = _CHECK.run(_model(_period("FY", assets, liab, eq)))
     assert len(findings) == 1
     assert findings[0].severity is CheckSeverity.BLOCKING
+
+
+# ---- EXACT message / expected / actual strings (kill string-literal mutants) ----
+#
+# mutmut wraps every string literal in XX...XX, so a substring `in` check passes on
+# the mutated text. The assertions below pin the FULL string with `==` so any mutated
+# character (including the `!r` repr punctuation and the `+`/`!=` arithmetic words)
+# fails the test — the dominant surviving-mutant class for this check.
+
+
+def test_imbalance_message_is_exact_including_period_repr() -> None:
+    """The imbalance message is the EXACT full string, with the period rendered ``!r``.
+
+    Pins the literal wording AND the ``{period.period!r}`` interpolation: ``'FY24'``
+    (quoted, repr form), not ``FY24``. A mutated message literal or an ``!r``->``!s``
+    change would alter this string and fail the ``==``.
+    """
+    (finding,) = _CHECK.run(
+        _model(_period("FY24", Decimal("100"), Decimal("60"), Decimal("39")))
+    )
+    assert finding.message == (
+        "accounting identity violated for period 'FY24': "
+        "assets != liabilities + equity (exact)"
+    )
+    assert finding.locator == "FY24"
+
+
+def test_imbalance_message_repr_quotes_a_quote_bearing_label() -> None:
+    """A label containing a quote proves the ``!r`` repr (escaped), not plain ``!s``.
+
+    ``"FY'24"`` reprs to ``"FY'24"`` (double-quoted by Python because the string holds
+    a single quote). If the source used ``!s`` the rendered label would be the bare
+    ``FY'24`` and this exact-match would fail.
+    """
+    label = "FY'24"
+    (finding,) = _CHECK.run(
+        _model(_period(label, Decimal("5"), Decimal("2"), Decimal("2")))
+    )
+    assert finding.message == (
+        f"accounting identity violated for period {label!r}: "
+        "assets != liabilities + equity (exact)"
+    )
+    assert finding.message == (
+        'accounting identity violated for period "FY\'24": '
+        "assets != liabilities + equity (exact)"
+    )
+
+
+def test_imbalance_expected_actual_are_exact_and_pin_the_plus_operator() -> None:
+    """``expected``/``actual`` are exact; ``L+E`` proves ``liabilities + equity`` sums.
+
+    With assets=100, liabilities=60, equity=30 the sheet is imbalanced (100 != 90).
+    ``actual == "L+E=90"`` would become ``"L+E=30"`` if ``+`` were mutated to ``-``
+    (60 - 30), so this kills the arithmetic-operator mutant in ``_imbalance_finding``.
+    """
+    (finding,) = _CHECK.run(
+        _model(_period("Q1", Decimal("100"), Decimal("60"), Decimal("30")))
+    )
+    assert finding.expected == "A=100"
+    assert finding.actual == "L+E=90"
+
+
+def test_absent_facts_message_is_exact_not_substring() -> None:
+    """The fail-closed message is the EXACT literal (``==``), not a substring match."""
+    artifact = ReviewableArtifact(
+        artifact_ref="art-no-facts",
+        kind=ArtifactKind.FINANCIAL_MODEL,
+        path=_SYNTHETIC_PATH,
+        balance_sheet=None,
+    )
+    (finding,) = _CHECK.run(artifact)
+    assert finding.message == "balance-sheet facts absent — cannot verify A=L+E"
+    assert finding.check_id is ReviewCheckId.ACCOUNTING_IDENTITY
+    assert finding.expected is None
+    assert finding.actual is None

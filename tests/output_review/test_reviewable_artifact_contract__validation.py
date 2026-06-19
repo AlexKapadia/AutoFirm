@@ -114,3 +114,33 @@ def test_property_any_nonblank_ref_and_valid_kind_constructs(
 def test_property_any_blank_ref_refused(ref: str) -> None:
     with pytest.raises(OutputReviewError):
         ReviewableArtifact(artifact_ref=ref, kind=ArtifactKind.SLIDE_DECK, path=Path("/x"))
+
+
+# ---- EXACT error-message pin (kill the string-literal XX..XX mutant) --------------
+# A substring check cannot kill a wrapped string literal; assert the FULL message ==.
+
+_NON_BLANK_REF_MESSAGE = "ReviewableArtifact artifact_ref must be non-blank"
+
+
+def test_blank_ref_exact_error_text() -> None:
+    with pytest.raises(OutputReviewError) as exc:
+        _valid(artifact_ref="   ")
+    assert str(exc.value) == _NON_BLANK_REF_MESSAGE
+
+
+# ---- EXACT ArtifactKind value strings (kill the per-member value-literal mutants) -
+
+
+def test_artifact_kind_member_values_exact() -> None:
+    assert ArtifactKind.FINANCIAL_MODEL.value == "FINANCIAL_MODEL"
+    assert ArtifactKind.SLIDE_DECK.value == "SLIDE_DECK"
+    assert ArtifactKind.BUSINESS_DOCUMENT.value == "BUSINESS_DOCUMENT"
+
+
+def test_artifact_kind_membership_complete() -> None:
+    # Closed set pinned exactly: an added/removed kind FAILS here.
+    assert set(ArtifactKind) == {
+        ArtifactKind.FINANCIAL_MODEL,
+        ArtifactKind.SLIDE_DECK,
+        ArtifactKind.BUSINESS_DOCUMENT,
+    }
