@@ -94,6 +94,15 @@ def test_balance_sheet_constructs_multi_period() -> None:
     assert len(bs.periods) == 2
 
 
+def test_balance_sheet_figures_is_frozen() -> None:
+    # The OUTER aggregate must be immutable too: a check shares this bundle and must
+    # not be able to swap the period set under another check (frozen=True; killing the
+    # frozen->False and the whole model_config->None mutants on the aggregate config).
+    bs = BalanceSheetFigures(periods=(_period(),))
+    with pytest.raises(ValidationError):
+        bs.periods = ()  # type: ignore[misc]
+
+
 # ---- numeric claims (NUMERIC_RECOMPUTE) ----------------------------------------
 
 

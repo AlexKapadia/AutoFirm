@@ -62,12 +62,16 @@ class BalanceSheetPeriod(BaseModel):
     equity: Decimal
 
     @field_validator("assets", "liabilities", "equity", mode="before")
-    @classmethod
+    # @classmethod removal is equivalent: pydantic v2 auto-wraps a @field_validator
+    # as a classmethod, so dropping the explicit decorator is behaviourally identical.
+    @classmethod  # pragma: no mutate
     def _no_float_figures(cls, value: object) -> object:
         return reject_float_input(value)
 
     @field_validator("period")
-    @classmethod
+    # @classmethod removal is equivalent: pydantic v2 auto-wraps a @field_validator
+    # as a classmethod, so dropping the explicit decorator is behaviourally identical.
+    @classmethod  # pragma: no mutate
     def _period_non_blank(cls, value: str) -> str:
         return require_non_blank(value, field="BalanceSheetPeriod.period")
 
