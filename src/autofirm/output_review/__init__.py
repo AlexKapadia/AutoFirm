@@ -30,6 +30,14 @@ findings and verdicts carry opaque references only — never raw artifact conten
 
 from __future__ import annotations
 
+from autofirm.output_review.accounting_identity_check import AccountingIdentityCheck
+from autofirm.output_review.fast_lint_check import FastLintCheck
+from autofirm.output_review.file_opens_clean_check import (
+    FileOpenProbe,
+    FileOpensCleanCheck,
+)
+from autofirm.output_review.ibcs_success_rubric_check import IbcsSuccessRubricCheck
+from autofirm.output_review.numeric_recomputation_check import NumericRecomputationCheck
 from autofirm.output_review.output_review_errors import OutputReviewError
 from autofirm.output_review.review_check_protocol import CheckRegistry, ReviewCheck
 from autofirm.output_review.review_finding_and_severity_contracts import (
@@ -55,9 +63,12 @@ from autofirm.output_review.reviewable_artifact_facts import (
     NumericClaimSet,
     SpecRoundTrip,
 )
+from autofirm.output_review.spec_artifact_round_trip_check import SpecRoundTripCheck
+from autofirm.output_review.visual_integrity_lint_check import VisualIntegrityLintCheck
 
 __all__ = [
     "CHECK_DEFECT_CLASSES",
+    "AccountingIdentityCheck",
     "ArtifactKind",
     "BalanceSheetFigures",
     "BalanceSheetPeriod",
@@ -66,10 +77,15 @@ __all__ = [
     "DeckElementFacts",
     "DeckStructuralFacts",
     "DefectClass",
+    "FastLintCheck",
+    "FileOpenProbe",
+    "FileOpensCleanCheck",
+    "IbcsSuccessRubricCheck",
     "ModelLintFacts",
     "ModelRowFormulaFacts",
     "NumericClaim",
     "NumericClaimSet",
+    "NumericRecomputationCheck",
     "OutputReviewError",
     "ReviewCheck",
     "ReviewCheckId",
@@ -77,4 +93,6 @@ __all__ = [
     "ReviewVerdict",
     "ReviewableArtifact",
     "SpecRoundTrip",
+    "SpecRoundTripCheck",
+    "VisualIntegrityLintCheck",
 ]
