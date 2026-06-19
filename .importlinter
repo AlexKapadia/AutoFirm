@@ -51,7 +51,24 @@ source_modules =
     autofirm.orchestration
     autofirm.org
     autofirm.substrate
+    autofirm.cockpit
 forbidden_modules =
     openpyxl
     pptx
     docx
+
+# The cockpit's pure decision core (cockpit/core/**) must stay side-effect-free and
+# UI-agnostic: it may NOT import the Textual UI, the CLI transport, or the backend
+# adapters (cockpit-research/PLAN.md §1.1, §5). Keeping the core pure is what makes it
+# the mutation-testing target and lets the UI be replaced without touching logic. A
+# violation fails this gate rather than being caught by review.
+[importlinter:contract:cockpit-core-must-be-pure]
+name = Cockpit pure core must not import UI / transport / adapter layers
+type = forbidden
+source_modules =
+    autofirm.cockpit.core
+forbidden_modules =
+    autofirm.cockpit.tui
+    autofirm.cockpit.transport
+    autofirm.cockpit.adapters
+    autofirm.cockpit.composition

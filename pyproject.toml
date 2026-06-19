@@ -56,6 +56,16 @@ dev = [
   "import-linter>=2.0",
   "bandit>=1.7",
 ]
+# OPERATOR-COCKPIT TIER (cockpit-research/PLAN.md §5): the terminal operator
+# control plane (`python -m autofirm.cockpit`). Textual + Rich are MIT-licensed and
+# are imported ONLY by the `autofirm.cockpit` package — they are NOT part of the
+# deterministic runtime closure, so they live in this additive optional tier and
+# never in `[project.dependencies]`. Pinned to the current stable floors verified
+# at build time (textual 8.x / rich 15.x).
+cockpit = [
+  "textual>=8.2",
+  "rich>=15.0",
+]
 # ARTIFACT/OUTPUT-TIER (CLAUDE.md §3.10): business-deliverable generation ONLY.
 # openpyxl/python-pptx/python-docx produce client artifacts (xlsx/pptx/docx) and
 # are NOT part of the deterministic runtime closure. They may be imported ONLY by
