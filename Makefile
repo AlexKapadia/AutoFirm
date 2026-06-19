@@ -9,7 +9,10 @@
 PY ?= python
 
 .DEFAULT_GOAL := help
-.PHONY: help install test lint types unit coverage mutation sast contract secretscan clean
+.PHONY: help install test lint types unit coverage mutation sast contract secretscan scripttests clean
+
+# PowerShell host for the ops-script tests (Windows PowerShell 5.1 or pwsh on CI).
+PWSH ?= powershell
 
 help: ## Show this help.
 	@echo "AutoFirm make targets:"
@@ -25,7 +28,7 @@ install: ## Create a venv and install all extras (runtime + dev + test + analysi
 # --- Individual gates (ADR-001 §3 order: cheapest + most-likely-to-fail first) ---
 
 lint: ## Gate 1a: ruff lint (self-documenting-name + style gate).
-	$(PY) -m ruff check src tests
+	$(PY) -m ruff check src tests scripts
 
 types: ## Gate 1b: mypy --strict type gate.
 	$(PY) -m mypy
@@ -54,8 +57,11 @@ secretscan: ## Secret-scan gate. Uses gitleaks if present; otherwise a hard fail
 	@command -v gitleaks >/dev/null 2>&1 && gitleaks detect --no-banner --redact || \
 		echo "WARNING: gitleaks not installed locally — CI MUST run it (fail-closed gate, ADR-001 §4)."
 
+scripttests: ## Ops-script gate: table-driven unit tests for the resume-watchdog decision fn.
+	$(PWSH) -NoProfile -ExecutionPolicy Bypass -File tests/test_autofirm_resume_watchdog__decision_table.ps1
+
 # --- The one command (ADR-001 §3): gates run in order, fail-fast. ---
-test: lint types unit mutation sast contract secretscan ## Run the whole gated suite in order.
+test: lint types unit mutation sast contract secretscan scripttests ## Run the whole gated suite in order.
 	@echo "=== make test: all gates complete ==="
 
 clean: ## Remove caches and build artifacts (never touches .autofirm/ or .git/).

@@ -58,6 +58,45 @@ def test_launch_spec_refuses_underspecified_fields(overrides: dict[str, object])
         LaunchSpec(**kwargs)  # type: ignore[arg-type]
 
 
+def _base_launch_kwargs() -> dict[str, object]:
+    return {
+        "owning_role_id": RoleId("role-1"),
+        "system_prompt": "worker",
+        "working_dir": "/wt/a",
+        "credential_reference": make_credential_reference(),
+    }
+
+
+@pytest.mark.unit
+@pytest.mark.security
+def test_launch_spec_refuses_non_anthropic_model_for_cli_lane() -> None:
+    # ADR-003 linchpin: the CLI lane is Anthropic-only -- a non-Anthropic pinned
+    # model on a LaunchSpec is refused fail-closed at construction.
+    from autofirm.modelgateway.model_reference import ModelProvider, ModelRef
+
+    with pytest.raises(ValidationError, match="Anthropic"):
+        LaunchSpec(
+            **_base_launch_kwargs(),
+            model=ModelRef(provider=ModelProvider.OPENAI, model_name="gpt-x"),
+        )
+
+
+@pytest.mark.unit
+def test_launch_spec_accepts_anthropic_model_for_cli_lane() -> None:
+    from autofirm.modelgateway.model_reference import ModelProvider, ModelRef
+
+    spec = LaunchSpec(
+        **_base_launch_kwargs(),
+        model=ModelRef(provider=ModelProvider.ANTHROPIC, model_name="claude-haiku"),
+    )
+    assert spec.model is not None and spec.model.model_name == "claude-haiku"
+
+
+@pytest.mark.unit
+def test_launch_spec_model_is_optional() -> None:
+    assert LaunchSpec(**_base_launch_kwargs()).model is None
+
+
 @pytest.mark.unit
 @pytest.mark.parametrize(
     ("goal", "working_dir"),

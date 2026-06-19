@@ -45,6 +45,7 @@ import json
 import subprocess  # nosec B404 - spawning the claude CLI is this module's whole job
 from typing import Protocol
 
+from autofirm.modelgateway.cli_gateway_env_injection import build_cli_gateway_env
 from autofirm.substrate.session_identity import Clock, SessionId
 from autofirm.substrate.session_launcher_protocol import LaunchResult, LaunchSpec
 
@@ -84,10 +85,26 @@ class PowerShellClaudeLauncher:
     tests; only :meth:`build_argument_vector` (pure) is unit-tested.
     """
 
-    def __init__(self, clock: Clock, secret_resolver: SecretResolver) -> None:
-        """Create a launcher using ``clock`` for expiry checks + ``secret_resolver``."""
+    def __init__(
+        self,
+        clock: Clock,
+        secret_resolver: SecretResolver,
+        gateway_base_url: str,
+    ) -> None:
+        """Create a launcher using ``clock``, ``secret_resolver``, and the gateway URL.
+
+        ``gateway_base_url`` is the self-hosted egress gateway the CLI is pointed at
+        (non-secret config from env / secret-manager, never a literal in code). It is
+        injected into the child env via ``ANTHROPIC_BASE_URL``; the per-session
+        virtual key (the secret) is resolved at point-of-use and injected separately.
+        """
+        # fail-closed: an empty gateway URL would point the CLI at nothing -- refuse
+        # to construct a launcher that cannot egress through the audited boundary.
+        if not gateway_base_url or not gateway_base_url.strip():
+            raise ValueError("gateway_base_url must be non-empty")
         self._clock = clock
         self._secret_resolver = secret_resolver
+        self._gateway_base_url = gateway_base_url
 
     @staticmethod
     def build_argument_vector(spec: LaunchSpec) -> list[str]:
@@ -115,6 +132,12 @@ class PowerShellClaudeLauncher:
         ]
         if spec.resume_from is not None:
             argv += ["--resume", str(spec.resume_from)]
+        if spec.model is not None:
+            # The model NAME is non-secret routing metadata (validated Anthropic-
+            # eligible on the spec, ADR-003); it is safe on argv. The gateway URL +
+            # virtual key are injected via the child ENV (build_cli_gateway_env),
+            # never argv -- so argv stays structurally secret-free.
+            argv += ["--model", spec.model.model_name]
         return argv
 
     def launch(self, spec: LaunchSpec) -> LaunchResult:
@@ -140,6 +163,19 @@ class PowerShellClaudeLauncher:
         # secrets-never-logged: the secret goes into the child ENV, not argv; argv
         # (which may be logged/inspected) is structurally secret-free.
         child_env = {_SECRET_ENV_VAR: secret}
+        # ADR-003: point the CLI at the audited gateway via the ENV (never argv). The
+        # builder ENFORCES the linchpin -- only an Anthropic-eligible model is allowed
+        # on the CLI lane (a non-Anthropic spec.model is refused at spec construction
+        # AND here). The per-session virtual key (the secret) is injected as the
+        # ANTHROPIC_AUTH_TOKEN value at this point-of-use; the builder only ever sees
+        # the resolved key here, never argv or a log line.
+        if spec.model is not None:
+            gateway_env = build_cli_gateway_env(
+                gateway_base_url=self._gateway_base_url,
+                auth_token_placeholder=secret,  # resolved virtual key, point-of-use only
+                requested_model=spec.model,
+            )
+            child_env.update(gateway_env)
         completed = subprocess.run(  # nosec B603 - argv is built from validated, secret-free fields
             argv,
             cwd=spec.working_dir,
