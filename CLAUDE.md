@@ -341,3 +341,37 @@ This file is **living**. Whenever the user states a **new way of working**, pers
 - **Mirror to memory.** Also write the preference into Claude's persistent memory (a short note) so it's active even before this file is read.
 - **Resolve conflicts in the user's favour as the more specific rule.** A newer, explicit preference here overrides a more general default elsewhere.
 - **One concept per section; keep it skimmable.** Short, declarative bullets beat prose. If a section sprawls, split it.
+
+---
+
+# 7. RECURRING-FIX PLAYBOOK & ENVIRONMENT CONTRACT (learned the hard way — fix once, don't re-discover)
+
+These are mistakes this workflow has hit **repeatedly across sessions and projects**. Each is now a standing rule so it is solved once, not re-debugged every run. This section grows under §6 whenever a new recurrence is observed. (The deeper architecture/process preferences live in Claude's persistent memory; this section is the operational "stop stepping on the same rake" ledger.)
+
+### 7.1 This is a Windows dev box — write cross-platform, verify on Linux CI
+- **`make` is not installed on native Windows** — invoking `make test` directly fails. Run the real underlying command the Makefile defines (the venv pytest/coverage invocation or the gate script); treat the Makefile as the *spec* for that command. **Never report a gate "skipped" because `make` was missing** — that is a tooling gap, not a passing gate.
+- **All path logic must be OS-agnostic.** Traps that have bitten us:
+  - `PurePosixPath("C:/...").is_absolute()` returns **False** — a Windows drive prefix is not a POSIX root. For POSIX path *algebra*, normalise `\`→`/` and prepend `/` to form a `/C:/...` mirror; do real filesystem I/O through the concrete `Path`, never the mirror.
+  - `npm --prefix` and `npm run start --` mangle Windows paths (backslashes, embedded spaces). Quote paths; prefer forward slashes.
+- **Git Bash / MSYS2 corrupts colon-bearing git refs** (`git show origin/main:.importlinter` → `origin\main;.importlinter`). Set `MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'` for those commands.
+- **Force UTF-8 for any subprocess that may print non-ASCII.** The cp1252 console crashes on emoji/Unicode and has repeatedly killed tool runs. Pass `PYTHONUTF8=1` **and** `PYTHONIOENCODING=utf-8` in the *child* env (overriding the child's I/O, not just the parent's read side of the pipe).
+
+### 7.2 Mutation gate — Linux CI is the enforcement plane; iterate locally within its limits
+- On native Windows, `mutmut` 2.x (a) crashes printing its emoji banner under cp1252 (fix via the UTF-8 child env in §7.1), and (b) **cannot abort a busy Python loop on timeout, so infinite-loop mutants hang forever**. So locally **scope mutation to non-loop-bearing modules**; the full, loop-bearing suite is gated on **Linux CI with signal-based timeouts**.
+- **Fail-closed grading is sacred:** only `ok_killed` counts as killed; `survived`/`timeout`/`untested`/`suspicious` all fail; any survivor ⇒ exit 1. **Never widen the killed-set or the skip-set to make the gate go green** (that is the §3.6 / §5.6 "never weaken a control to pass" rule).
+- The CI mutation gate is **nightly / `workflow_dispatch` only — it is *skipped* on push.** A green push run does **not** mean mutation passed. Full-tree scope has repeatedly **cancelled at 6h+**; scope each run to changed/critical modules and/or shard across jobs.
+
+### 7.3 CI gate hygiene — run the WHOLE fast gate locally before every push
+- **Run the entire fast gate locally before pushing — not just the tests.** A "fix" commit has gone CI-red on a lint rule the test run never exercised (e.g. ruff `SIM105`: `try/except/pass` → `contextlib.suppress`). The gate set to run before push: **ruff + mypy + import-linter + pytest/coverage + secret scan**.
+- **Every new runtime package under `src/` must be added to `.importlinter`** (source_modules / forbidden lists) **in the same change** that creates it. New packages have repeatedly landed unprotected and/or red.
+- **import-linter prints nothing when all contracts pass** — empty output is **success**, not failure. Don't "fix" a passing gate.
+- **Never dispatch a CI/mutation run against a stale commit.** Confirm the run's SHA equals current `main`/HEAD before dispatching; cancel long stale runs so the concurrency lock releases for the fresh one.
+- **`tests/` needs an `__init__.py`** at the project root, or Python resolves `import tests...` to a *site-packages* package and collection fails — `PYTHONPATH=.` alone is insufficient.
+
+### 7.4 Shell & commit hygiene on this box
+- **PowerShell here-strings have leaked artifacts into commits** (e.g. a stray `@` prefix on a commit title). Read back the commit message/title after writing it.
+- **`source .venv/Scripts/activate 2>/dev/null` masks the real exit code** (false `EXIT=0`). Check the exit status of the command you actually care about, not the masked pipeline.
+- **`Agent` tool `isolation:"worktree"` is unreliable here** — for parallel file-writing agents, create real worktrees (`git worktree add`) and point each agent at its own directory so they don't serialise/clobber on one checkout.
+
+### 7.5 Trust the artifact, not the word "done"
+- A subagent reporting "complete / green" is a **claim, not evidence**. Confirm the real artifact yourself: run the gate, read the file, check the CI run's conclusion directly. Independent re-verification has repeatedly caught work reported done that wasn't — this is the §3.7 loop and the North Star pass earning their keep, not optional ceremony.
