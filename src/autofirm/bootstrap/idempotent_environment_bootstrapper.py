@@ -81,13 +81,22 @@ def _topological_order(steps: tuple[BootstrapStep, ...]) -> tuple[BootstrapStep,
     ordered: list[BootstrapStep] = []
     done: set[str] = set()
     remaining = dict(by_id)
-    while remaining:
+    # Bounded-iteration guard (CLAUDE.md §7.2): each pass emits at least one ready step, so a
+    # well-formed DAG of N steps always drains in <= N passes. Capping the passes at exactly
+    # ``len(steps)`` via a bounded ``range`` (rather than an open ``while remaining``) makes it
+    # structurally impossible for a mutated loop body to busy-spin forever — mutmut 2.x cannot
+    # abort a busy Python loop on Windows. The cap is a real invariant, not a test-only hack:
+    # a valid acyclic graph never needs an (N+1)th pass.
+    for _ in range(len(steps)):
+        if not remaining:
+            break  # drained early (independent steps resolve in one pass) — nothing left to do
         ready = sorted(
             (s for s in remaining.values() if all(r in done for r in s.requires)),
             key=lambda s: s.id,
         )
         if not ready:
-            # fail-closed: no ready step but steps remain => a dependency cycle.
+            # fail-closed: steps remain but none is ready => a dependency cycle. Bounding the
+            # loop ALSO catches this on the first stuck pass, so the raise is reachable & tested.
             raise ValueError(f"dependency cycle among steps: {sorted(remaining)}")
         for step in ready:
             ordered.append(step)
