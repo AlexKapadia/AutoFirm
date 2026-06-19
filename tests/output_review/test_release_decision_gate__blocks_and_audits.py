@@ -263,6 +263,20 @@ def test_extra_field_is_forbidden() -> None:
         )
 
 
+def test_release_decision_is_frozen_cannot_flip_authorised() -> None:
+    # If the record were not frozen, a caller could flip ``authorised`` to True
+    # AFTER the guard ran — authorising a release the verdict never permitted.
+    d = ReleaseDecision(
+        artifact_ref="art-1",
+        final_verdict=_failing_verdict(),
+        reason="blocked",
+        decided_at=_FIXED_AT,
+    )
+    assert d.authorised is False
+    with pytest.raises(ValidationError):
+        d.authorised = True  # frozen=True forbids post-construction mutation
+
+
 # ================================================================================
 # 5. AUDIT-FAIL FAIL-CLOSED — no authorised release escapes unaudited.
 # ================================================================================

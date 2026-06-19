@@ -95,7 +95,7 @@ class ReleaseDecision(BaseModel):
     authorised: bool | None = None
 
     @field_validator("artifact_ref", "reason")
-    @classmethod
+    @classmethod  # pragma: no mutate  # equivalent: pydantic v2 auto-wraps validators, so removing @classmethod is behaviourally identical (blank still refused, valid still passes)
     def _non_blank(cls, value: str) -> str:
         # fail-closed: a release over an unidentifiable artifact, or with no stated
         # reason, cannot be audited or explained — refuse it (CLAUDE.md §5.6, §3.11).
