@@ -63,7 +63,11 @@ class ReviewCheck(Protocol):
     the same findings, so verdicts are reproducible.
     """
 
-    @property
+    # @property removal is an equivalent mutant: a @runtime_checkable Protocol's
+    # isinstance check tests only attribute existence (proven: identical results and
+    # identical _get_protocol_attrs with or without it), and this body is `...` (never
+    # executed) -- so no non-tautological test can distinguish the two forms.
+    @property  # pragma: no mutate
     def id(self) -> ReviewCheckId:
         """The closed-set id this check owns (used as its registry key)."""
         ...
