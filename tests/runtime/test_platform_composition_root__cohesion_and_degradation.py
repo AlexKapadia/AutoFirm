@@ -184,8 +184,31 @@ def test_validate_cohesion__error_names_the_missing_capability_ids() -> None:
     assert str(excinfo.value) == "composition root is missing wired capabilities: ['audit']"
 
 
-def test_build_platform__gateway_degraded_decision_uses_provider_anthropic_name() -> None:
-    """The gateway degraded reason reflects the anthropic provider dependency (audit linkage)."""
+def test_build_platform__gateway_degraded_reason_names_the_provider_dependency() -> None:
+    """The gateway degraded reason names the provider dependency AND the policy outcome exactly.
+
+    Pins the audit-linkage format ``<dependency>:<policy-reason>`` (§3.11) so a mutant that
+    drops/wraps the ``provider:anthropic`` dependency label or the ``:`` separator is killed.
+    """
     platform = build_platform(PlatformConfig(present_providers=frozenset()), now=_NOW)
-    # The degraded gateway carries the policy's reason for the absent provider:anthropic dep.
-    assert platform.capability("gateway").reason == "optional_dependency_absent_capability_degraded"
+    assert (
+        platform.capability("gateway").reason
+        == "provider:anthropic:optional_dependency_absent_capability_degraded"
+    )
+
+
+def test_build_platform__gateway_present_reason_names_the_provider_dependency() -> None:
+    """When the provider key is present the reason still names the dependency (present branch)."""
+    platform = build_platform(_healthy_config(), now=_NOW)
+    assert platform.capability("gateway").reason == "provider:anthropic:dependency_present"
+
+
+def test_build_platform__defaults_now_propagates_a_real_instant_to_every_probe() -> None:
+    """`now=None` must resolve a REAL instant so every probe still passes (kills the ternary flip).
+
+    A mutant flipping ``now is not None`` to ``now is None`` would feed ``instant=None`` into the
+    factories on the default-now path, making the audit probe raise on a ``None`` timestamp. So
+    we assert every probe passes when ``now`` is omitted.
+    """
+    platform = build_platform(_healthy_config())  # now omitted -> resolved at the edge
+    assert all(cap.probe().passed for cap in platform.capabilities)

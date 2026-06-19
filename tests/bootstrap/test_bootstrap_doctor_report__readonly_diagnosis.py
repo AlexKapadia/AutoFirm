@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field
 
-from autofirm.bootstrap.bootstrap_doctor_report import diagnose
+import pytest
+
+from autofirm.bootstrap.bootstrap_doctor_report import (
+    StepDiagnosis,
+    diagnose,
+)
 from autofirm.bootstrap.bootstrap_step_contract import Criticality, EnvProbe, StepState
 
 
@@ -93,3 +99,50 @@ def test_diagnose__missing_required_step_carries_remediation_hint() -> None:
     venv = next(d for d in report.missing if d.step_id == "venv")
     assert venv.state is StepState.FAILED
     assert "autofirm up" in venv.remediation
+
+
+# ---------------------------------------------------------------------------
+# Mutation-hardening (CLAUDE.md §3.6): pin the frozen-report invariants and the
+# EXACT remediation strings (the substring/truthy checks above survive a string-
+# wrapping mutant; an exact assertion kills it).
+# ---------------------------------------------------------------------------
+
+
+def test_step_diagnosis__is_frozen_immutable() -> None:
+    """A StepDiagnosis is an immutable read-only record (kills the ``frozen=True`` mutant)."""
+    diagnosis = StepDiagnosis(
+        step_id="venv",
+        criticality=Criticality.REQUIRED,
+        state=StepState.FAILED,
+        remediation="x",
+    )
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        diagnosis.state = StepState.SATISFIED  # type: ignore[misc]
+
+
+def test_doctor_report__is_frozen_immutable() -> None:
+    """A BootstrapDoctorReport is frozen so a rendered diagnosis cannot be rewritten."""
+    report = diagnose(_steps(), _Probe(facts={"venv", "plotting", "secret_scan"}))
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        report.diagnoses = ()  # type: ignore[misc]
+
+
+def test_diagnose__satisfied_step_has_empty_remediation() -> None:
+    """A SATISFIED step carries an EMPTY remediation (kills the ``""`` -> non-empty mutant)."""
+    report = diagnose(_steps(), _Probe(facts={"venv", "plotting", "secret_scan"}))
+    assert {d.state for d in report.diagnoses} == {StepState.SATISFIED}
+    assert all(d.remediation == "" for d in report.diagnoses)
+
+
+def test_diagnose__optional_remediation_string_is_byte_exact() -> None:
+    """The OPTIONAL remediation hint is pinned EXACTLY (kills the f-string-wrap mutant)."""
+    report = diagnose(_steps(), _Probe(facts={"venv", "secret_scan"}))  # plotting absent
+    plotting = next(d for d in report.missing if d.step_id == "plotting")
+    assert plotting.remediation == "optional: install 'plotting' to enable its capability"
+
+
+def test_diagnose__required_remediation_string_is_byte_exact() -> None:
+    """The REQUIRED remediation hint is pinned EXACTLY (kills the f-string-wrap mutant)."""
+    report = diagnose(_steps(), _Probe())  # nothing satisfied
+    venv = next(d for d in report.missing if d.step_id == "venv")
+    assert venv.remediation == "required: run 'autofirm up' (or fix 'venv') to converge it"

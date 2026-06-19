@@ -37,7 +37,7 @@ from autofirm.audit.audit_record_contract import AuditOutcome, AuditRecord, Enti
 from autofirm.audit.candidate_b_merkle_audit_log import MerkleAuditLog
 from autofirm.bootstrap.bootstrap_step_contract import Criticality
 from autofirm.costledger.append_only_cost_ledger import AppendOnlyCostLedger
-from autofirm.modelgateway.kill_switch_epoch import KillSwitchEpoch
+from autofirm.modelgateway.kill_switch_epoch import KillSwitchEngaged, KillSwitchEpoch
 from autofirm.runtime.platform_config import PlatformConfig
 from autofirm.runtime.platform_runtime import ProbeResult, WiredCapability
 
@@ -61,7 +61,9 @@ def build_kill_switch_capability(*, instant: datetime) -> WiredCapability:
         engaged = KillSwitchEpoch(version=1, tripped=True)
         try:
             engaged.require_egress_permitted()
-        except Exception:
+        except KillSwitchEngaged:
+            # Narrow catch (§5.6): ONLY the kill-switch's own fail-closed signal counts as a
+            # pass; any other error is a broken control and must surface, not be masked.
             return ProbeResult(passed=True, reason="engaged_switch_refused_egress")
         # fail-closed: a tripped switch that did NOT refuse is a broken security control.
         return ProbeResult(passed=False, reason="engaged_switch_permitted_egress")
@@ -171,16 +173,14 @@ def build_gateway_capability(
     egress path. When no key is present the capability is bound DEGRADED (bulkhead) and the
     probe asserts it correctly reports degraded rather than attempting egress (§5.6).
     """
-    del config  # the synthetic probe needs no live URL; presence already drove `degraded`
-
     def probe() -> ProbeResult:
         if degraded:
             # Correct-degradation path: a key-less gateway must report degraded, never call.
             return ProbeResult(passed=True, reason="gateway_degraded_no_provider_key")
         transport = _SyntheticHealthyTransport()
-        response = transport.post_json(
-            "synthetic://gateway/health", headers={}, body={}
-        )
+        # Target the CONFIGURED gateway base URL (not a hard-coded literal) so the probe proves
+        # reachability against the same endpoint the live capability would bind (§3.11 honesty).
+        response = transport.post_json(config.gateway_url, headers={}, body={})
         if response.status_code == _HTTP_OK:
             return ProbeResult(passed=True, reason="gateway_reachable")
         return ProbeResult(passed=False, reason="gateway_unreachable")

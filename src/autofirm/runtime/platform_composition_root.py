@@ -127,7 +127,10 @@ def build_platform(
     gateway_cap = build_gateway_capability(
         config=config,
         degraded=gateway_degraded,
-        reason=gateway_decision.reason,
+        # Surface WHICH dependency drove the bind decision alongside WHY (§3.11 explain-every-
+        # decision): the gateway's audited reason names the provider dependency, not just the
+        # generic policy outcome — so a degraded gateway is traceable to provider:anthropic.
+        reason=f"{gateway_decision.dependency_name}:{gateway_decision.reason}",
         instant=instant,
     )
     cost_ledger_cap = build_cost_ledger_capability(instant=instant)

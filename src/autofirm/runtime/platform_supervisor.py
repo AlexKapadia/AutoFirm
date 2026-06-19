@@ -113,7 +113,10 @@ class PlatformSupervisor:
         """
         for _ in range(max(cycles, 0)):
             if self._draining:
-                break
+                # A cooperative drain was requested: stop ticking and report. Returning the
+                # snapshot directly (rather than ``break``) avoids an equivalent ``break``->
+                # ``continue`` mutant, so the early exit is provable by the mutation gate (§3.6).
+                return self.snapshot()
             for record in self._records:
                 self._tick_one(record)
         return self.snapshot()

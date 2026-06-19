@@ -89,7 +89,10 @@ def _topological_order(steps: tuple[BootstrapStep, ...]) -> tuple[BootstrapStep,
     # a valid acyclic graph never needs an (N+1)th pass.
     for _ in range(len(steps)):
         if not remaining:
-            break  # drained early (independent steps resolve in one pass) — nothing left to do
+            # Drained early (independent steps resolve in one pass): return the order so far.
+            # A direct ``return`` (rather than ``break``) avoids an equivalent ``break``->
+            # ``continue`` mutant — the early exit is then provable by the mutation gate (§3.6).
+            return tuple(ordered)
         ready = sorted(
             (s for s in remaining.values() if all(r in done for r in s.requires)),
             key=lambda s: s.id,

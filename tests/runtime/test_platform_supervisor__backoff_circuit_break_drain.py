@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 
 from autofirm.runtime.platform_runtime import Platform, SupervisedLoop
 from autofirm.runtime.platform_supervisor import (
     DEFAULT_MAX_RESTARTS,
     LoopState,
+    LoopStatus,
     PlatformSupervisor,
+    SupervisionSnapshot,
 )
 
 
@@ -129,3 +133,125 @@ def test_supervisor__run_cycles_with_zero_is_a_no_op() -> None:
     )
     snapshot = supervisor.run_cycles(0)
     assert snapshot.loops[0].state is LoopState.READY
+
+
+# ---------------------------------------------------------------------------
+# Mutation-hardening (CLAUDE.md §3.6): pin enum/status string contracts, the
+# frozen snapshots, the exact restart-budget arithmetic and its boundary, and
+# the zero/negative-cycle clamp. Each kills a specific surviving mutant.
+# ---------------------------------------------------------------------------
+
+
+def _crash() -> None:
+    raise RuntimeError("always broken")
+
+
+def test_loop_state__enum_values_are_the_exact_status_strings() -> None:
+    """The LoopState wire values are pinned exactly (kills value-wrap and ``=None`` mutants).
+
+    These strings are surfaced by ``status``; a mutant that wraps or nulls a value would
+    corrupt the reported loop state, so every member's value is asserted literally.
+    """
+    assert LoopState.READY.value == "ready"
+    assert LoopState.RESTARTING.value == "restarting"
+    assert LoopState.OPEN.value == "open"
+    assert LoopState.DRAINED.value == "drained"
+
+
+def test_loop_status__is_frozen_immutable() -> None:
+    """A LoopStatus snapshot row is immutable (kills the ``frozen=True`` mutant)."""
+    status = LoopStatus(name="a", state=LoopState.READY, consecutive_failures=0)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        status.state = LoopState.OPEN  # type: ignore[misc]
+
+
+def test_supervision_snapshot__is_frozen_immutable() -> None:
+    """A SupervisionSnapshot is immutable (kills the ``frozen=True`` mutant)."""
+    snapshot = SupervisionSnapshot()
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        snapshot.loops = ()  # type: ignore[misc]
+
+
+def test_supervision_snapshot__defaults_to_empty_loops_tuple() -> None:
+    """An empty snapshot defaults to ``()`` loops (kills the ``= None`` default mutant)."""
+    snapshot = SupervisionSnapshot()
+    assert snapshot.loops == ()
+    assert snapshot.all_healthy  # no loop is OPEN -> vacuously healthy
+
+
+def test_supervisor__initial_state_is_not_draining() -> None:
+    """A freshly-built supervisor is NOT draining (kills the ``self._draining = None`` mutant).
+
+    The draining flag is a strict boolean: it starts ``False`` (run proceeds) and only
+    ``drain()`` flips it ``True``. ``None`` would be falsy-equivalent at runtime, so the exact
+    boolean initial state is asserted to prove the documented start condition.
+    """
+    supervisor = PlatformSupervisor(_platform_with(()))
+    assert supervisor._draining is False
+
+
+def test_supervisor__rejects_non_positive_restart_budget_message_is_exact() -> None:
+    """The mis-configuration error text is pinned EXACTLY (kills the string-wrap mutant)."""
+    with pytest.raises(ValueError) as exc:
+        PlatformSupervisor(_platform_with(()), max_restarts=0)
+    assert str(exc.value) == "max_restarts must be >= 1"
+
+
+def test_supervisor__default_restart_budget_is_three_cycles() -> None:
+    """With the DEFAULT budget a loop trips OPEN only on the 4th crash (kills the ``3`` mutant).
+
+    Four always-crashing cycles must trip the breaker under ``DEFAULT_MAX_RESTARTS = 3``
+    (4 > 3); a mutant raising the default to 4 would leave it RESTARTING after four crashes.
+    """
+    assert DEFAULT_MAX_RESTARTS == 3
+    supervisor = PlatformSupervisor(_platform_with((SupervisedLoop(name="d", tick=_crash),)))
+    snapshot = supervisor.run_cycles(4)
+    assert snapshot.loops[0].state is LoopState.OPEN
+
+
+def test_supervisor__single_crash_increments_failures_by_exactly_one() -> None:
+    """One crash records exactly ONE failure (kills the ``+= 2`` increment mutant)."""
+    supervisor = PlatformSupervisor(_platform_with((SupervisedLoop(name="c", tick=_crash),)))
+    supervisor.run_cycles(1)
+    record = supervisor.snapshot().loops[0]
+    assert record.consecutive_failures == 1
+    assert record.state is LoopState.RESTARTING
+
+
+def test_supervisor__breaker_trips_strictly_above_budget_not_at_it() -> None:
+    """At EXACTLY the budget the loop is still RESTARTING (kills the ``>`` -> ``>=`` mutant).
+
+    With ``max_restarts=2`` a second crash leaves failures==2, which must NOT trip the breaker
+    (``2 > 2`` is False); a mutant using ``>=`` would trip OPEN one crash too early.
+    """
+    supervisor = PlatformSupervisor(
+        _platform_with((SupervisedLoop(name="b", tick=_crash),)), max_restarts=2
+    )
+    supervisor.run_cycles(2)  # exactly budget-many crashes
+    at_budget = supervisor.snapshot().loops[0]
+    assert at_budget.consecutive_failures == 2
+    assert at_budget.state is LoopState.RESTARTING  # NOT yet OPEN
+
+
+def test_supervisor__zero_cycles_ticks_zero_times() -> None:
+    """run_cycles(0) ticks the loop ZERO times (kills the ``max(cycles, 1)`` clamp mutant)."""
+    ticks = {"n": 0}
+
+    def _count() -> None:
+        ticks["n"] += 1
+
+    supervisor = PlatformSupervisor(_platform_with((SupervisedLoop(name="z", tick=_count),)))
+    supervisor.run_cycles(0)
+    assert ticks["n"] == 0  # a mutant clamping to range(1) would tick once
+
+
+def test_supervisor__negative_cycles_ticks_zero_times() -> None:
+    """A negative cycle count is clamped to zero work (boundary for ``max(cycles, 0)``)."""
+    ticks = {"n": 0}
+
+    def _count() -> None:
+        ticks["n"] += 1
+
+    supervisor = PlatformSupervisor(_platform_with((SupervisedLoop(name="n", tick=_count),)))
+    supervisor.run_cycles(-5)
+    assert ticks["n"] == 0
