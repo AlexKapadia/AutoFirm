@@ -53,7 +53,9 @@ class ModelRowFormulaFacts(BaseModel):
     formula_consistent: bool
 
     @field_validator("row_label")
-    @classmethod
+    # @classmethod removal is equivalent: pydantic v2 auto-wraps a @field_validator
+    # as a classmethod, so dropping the explicit decorator is behaviourally identical.
+    @classmethod  # pragma: no mutate
     def _row_label_non_blank(cls, value: str) -> str:
         return require_non_blank(value, field="ModelRowFormulaFacts.row_label")
 
@@ -83,14 +85,18 @@ class ModelLintFacts(BaseModel):
     expected_line_items: frozenset[str] = frozenset()
 
     @field_validator("orphan_constant_cells")
-    @classmethod
+    # @classmethod removal is equivalent: pydantic v2 auto-wraps a @field_validator
+    # as a classmethod, so dropping the explicit decorator is behaviourally identical.
+    @classmethod  # pragma: no mutate
     def _cells_non_blank(cls, value: tuple[str, ...]) -> tuple[str, ...]:
         for cell in value:
             require_non_blank(cell, field="ModelLintFacts.orphan_constant_cells entry")
         return value
 
     @field_validator("present_line_items", "expected_line_items")
-    @classmethod
+    # @classmethod removal is equivalent: pydantic v2 auto-wraps a @field_validator
+    # as a classmethod, so dropping the explicit decorator is behaviourally identical.
+    @classmethod  # pragma: no mutate
     def _items_non_blank(cls, value: frozenset[str]) -> frozenset[str]:
         for item in value:
             require_non_blank(item, field="ModelLintFacts line-item name")

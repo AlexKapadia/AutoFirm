@@ -229,6 +229,22 @@ def test_row_formula_facts_rejects_blank_label() -> None:
         ModelRowFormulaFacts(row_label="", formula_consistent=True)
 
 
+def test_model_lint_facts_is_frozen() -> None:
+    # The lint bundle a check reads must be immutable (frozen=True): kills the
+    # frozen->False and model_config->None mutants on ModelLintFacts's config.
+    m = ModelLintFacts()
+    with pytest.raises(ValidationError):
+        m.orphan_constant_cells = ("Sheet1!C9",)  # type: ignore[misc]
+
+
+def test_row_formula_facts_is_frozen() -> None:
+    # The per-row fact unit must be immutable too: kills the frozen->False and
+    # model_config->None mutants on ModelRowFormulaFacts's config.
+    r = ModelRowFormulaFacts(row_label="Revenue", formula_consistent=True)
+    with pytest.raises(ValidationError):
+        r.formula_consistent = False  # type: ignore[misc]
+
+
 # ---- deck structural facts (IBCS_SUCCESS + VISUAL_INTEGRITY) --------------------
 
 
