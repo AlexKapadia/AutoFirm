@@ -92,7 +92,7 @@ class ReviewVerdict(BaseModel):
     passed: bool | None = None
 
     @field_validator("artifact_ref")
-    @classmethod
+    @classmethod  # pragma: no mutate  # equivalent: pydantic v2 auto-wraps validators, so removing @classmethod is behaviourally identical (blank still refused, valid still passes)
     def _non_blank_ref(cls, value: str) -> str:
         # fail-closed: a verdict over an unidentifiable artifact cannot be audited.
         if not value or not value.strip():

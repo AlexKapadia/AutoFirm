@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from pydantic import ValidationError
 
 from autofirm.output_review.output_review_errors import OutputReviewError
 from autofirm.output_review.review_finding_and_severity_contracts import (
@@ -195,3 +196,65 @@ def test_determinism_identical_inputs_identical_verdict() -> None:
     assert a == b
     assert a.passed == b.passed is False
     assert a.model_dump() == b.model_dump()
+
+
+# ---- immutability + closed schema (the verdict cannot be edited after the fact) -
+
+
+def test_verdict_is_frozen_cannot_mutate_passed_after_construction() -> None:
+    # If the verdict were not frozen, a downstream caller could flip ``passed`` to
+    # True AFTER the guard ran — re-introducing the exact false pass the guard stops.
+    v = ReviewVerdict(artifact_ref="art-1", findings=(), reviewed_at=_FIXED_AT)
+    with pytest.raises(ValidationError):
+        v.passed = False  # frozen=True forbids post-construction mutation
+
+
+def test_verdict_forbids_unknown_fields() -> None:
+    # extra="forbid": an unexpected field (e.g. a smuggled override) is rejected,
+    # so no out-of-contract key can ride along and silently alter behaviour.
+    with pytest.raises(ValidationError):
+        ReviewVerdict(
+            artifact_ref="art-1",
+            reviewed_at=_FIXED_AT,
+            smuggled_passed=True,  # not a declared field -> refused
+        )
+
+
+# ---- defaults: omitting findings/checks_run must mean "empty", never None -------
+
+
+def test_omitted_findings_and_checks_run_default_to_empty_tuples() -> None:
+    # The empty-tuple defaults are load-bearing: a None default for ``findings``
+    # would crash the blocking scan, and a None ``checks_run`` would erase the
+    # omission-defence audit trail. Omitting both must yield empty tuples + pass.
+    v = ReviewVerdict(artifact_ref="art-1", reviewed_at=_FIXED_AT)
+    assert v.findings == ()
+    assert v.checks_run == ()
+    assert v.passed is True
+
+
+# ---- EXACT error messages (a corrupted message must not slip through) -----------
+
+
+def test_blank_ref_error_message_is_exact() -> None:
+    # Pin the full message byte-for-byte: a substring check would miss a mutated
+    # message that merely wraps the original, so assert exact equality.
+    with pytest.raises(OutputReviewError) as excinfo:
+        ReviewVerdict(artifact_ref="   ", reviewed_at=_FIXED_AT)
+    assert str(excinfo.value) == "ReviewVerdict artifact_ref must be non-blank"
+
+
+def test_false_pass_guard_error_message_is_exact() -> None:
+    # The guard's refusal message must state the invariant AND the offending values
+    # exactly (supplied vs derived), so an auditor can see why the verdict was refused.
+    with pytest.raises(OutputReviewError) as excinfo:
+        ReviewVerdict(
+            artifact_ref="art-1",
+            findings=(_finding(CheckSeverity.BLOCKING),),
+            reviewed_at=_FIXED_AT,
+            passed=True,
+        )
+    assert str(excinfo.value) == (
+        "ReviewVerdict.passed must equal (no BLOCKING finding present); "
+        "supplied=True, derived=False"
+    )
