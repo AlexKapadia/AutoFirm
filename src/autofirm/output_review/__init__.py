@@ -31,6 +31,16 @@ findings and verdicts carry opaque references only — never raw artifact conten
 from __future__ import annotations
 
 from autofirm.output_review.accounting_identity_check import AccountingIdentityCheck
+from autofirm.output_review.correction_loop_state import (
+    CorrectionLoopState,
+    CorrectionSendBack,
+)
+from autofirm.output_review.correction_send_back_builder import (
+    build_correction_send_back,
+)
+from autofirm.output_review.default_output_review_gate_factory import (
+    build_default_output_review_gate,
+)
 from autofirm.output_review.fast_lint_check import FastLintCheck
 from autofirm.output_review.file_opens_clean_check import (
     FileOpenProbe,
@@ -39,6 +49,12 @@ from autofirm.output_review.file_opens_clean_check import (
 from autofirm.output_review.ibcs_success_rubric_check import IbcsSuccessRubricCheck
 from autofirm.output_review.numeric_recomputation_check import NumericRecomputationCheck
 from autofirm.output_review.output_review_errors import OutputReviewError
+from autofirm.output_review.output_review_gate import OutputReviewGate
+from autofirm.output_review.release_decision_gate import (
+    ReleaseAuditSink,
+    ReleaseDecision,
+    ReleaseDecisionGate,
+)
 from autofirm.output_review.review_check_protocol import CheckRegistry, ReviewCheck
 from autofirm.output_review.review_finding_and_severity_contracts import (
     CHECK_DEFECT_CLASSES,
@@ -74,6 +90,8 @@ __all__ = [
     "BalanceSheetPeriod",
     "CheckRegistry",
     "CheckSeverity",
+    "CorrectionLoopState",
+    "CorrectionSendBack",
     "DeckElementFacts",
     "DeckStructuralFacts",
     "DefectClass",
@@ -87,6 +105,10 @@ __all__ = [
     "NumericClaimSet",
     "NumericRecomputationCheck",
     "OutputReviewError",
+    "OutputReviewGate",
+    "ReleaseAuditSink",
+    "ReleaseDecision",
+    "ReleaseDecisionGate",
     "ReviewCheck",
     "ReviewCheckId",
     "ReviewFinding",
@@ -95,4 +117,6 @@ __all__ = [
     "SpecRoundTrip",
     "SpecRoundTripCheck",
     "VisualIntegrityLintCheck",
+    "build_correction_send_back",
+    "build_default_output_review_gate",
 ]
