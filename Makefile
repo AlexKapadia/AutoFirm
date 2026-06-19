@@ -25,7 +25,7 @@ install: ## Create a venv and install all extras (runtime + dev + test + analysi
 # --- Individual gates (ADR-001 §3 order: cheapest + most-likely-to-fail first) ---
 
 lint: ## Gate 1a: ruff lint (self-documenting-name + style gate).
-	$(PY) -m ruff check src tests
+	$(PY) -m ruff check src tests scripts
 
 types: ## Gate 1b: mypy --strict type gate.
 	$(PY) -m mypy

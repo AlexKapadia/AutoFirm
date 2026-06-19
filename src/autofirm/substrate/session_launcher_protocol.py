@@ -48,6 +48,11 @@ from typing import Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from autofirm.modelgateway.cli_gateway_env_injection import (
+    NonAnthropicModelRefused,
+    is_anthropic_eligible,
+)
+from autofirm.modelgateway.model_reference import ModelRef
 from autofirm.org.org_identifiers import IdGenerator, RoleId
 from autofirm.substrate.scoped_credential_reference import ScopedCredentialReference
 from autofirm.substrate.session_identity import SessionId, session_id_prefix
@@ -77,6 +82,20 @@ class LaunchSpec(BaseModel):
     working_dir: str  # the single-writer worktree/dir to run in
     credential_reference: ScopedCredentialReference  # secret-free; never the secret
     resume_from: SessionId | None = None  # prior session id to resume, or None
+    model: ModelRef | None = None  # optional pinned model; Anthropic-eligible only (ADR-003)
+
+    @field_validator("model")
+    @classmethod
+    def _model_anthropic_eligible(cls, value: ModelRef | None) -> ModelRef | None:
+        # ADR-003 linchpin (fail-closed): a CLI session may pin ONLY an Anthropic-
+        # family model -- a non-Anthropic model on the CLI lane is uncertified and is
+        # refused here (that traffic must use the programmatic gateway lane).
+        if value is not None and not is_anthropic_eligible(value):
+            raise NonAnthropicModelRefused(
+                f"LaunchSpec.model must be Anthropic-eligible for the CLI lane; "
+                f"{value.provider.value}:{value.model_name} is refused"
+            )
+        return value
 
     @field_validator("system_prompt", "working_dir")
     @classmethod
