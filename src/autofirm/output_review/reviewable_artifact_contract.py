@@ -105,9 +105,11 @@ class ReviewableArtifact(BaseModel):
     artifact cannot be audited — fail-closed, CLAUDE.md §5.6).
     """
 
-    # arbitrary_types_allowed: ``originating_spec`` is an opaque builder spec object
-    # whose concrete type lives in another lane; the contract layer never inspects it.
-    model_config = ConfigDict(frozen=True, extra="forbid", arbitrary_types_allowed=True)
+    # ``originating_spec`` is an opaque ``object`` whose concrete type lives in another
+    # lane; pydantic v2 accepts an ``object``-typed field without arbitrary_types_allowed
+    # (proven: any instance, None, int, dict all validate identically with or without it),
+    # so the contract needs no type relaxation — only the integrity controls below.
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     artifact_ref: str
     kind: ArtifactKind
@@ -120,7 +122,10 @@ class ReviewableArtifact(BaseModel):
     deck_facts: DeckStructuralFacts | None = None
 
     @field_validator("artifact_ref")
-    @classmethod
+    # @classmethod is redundant here: pydantic v2 auto-wraps a @field_validator function
+    # as a classmethod, so removing the explicit decorator is behaviourally identical --
+    # an equivalent mutant no test can distinguish, hence the skip on the line below.
+    @classmethod  # pragma: no mutate
     def _non_blank_ref(cls, value: str) -> str:
         # fail-closed: an unidentifiable artifact cannot be referenced in a verdict
         # or audit record — refuse it rather than review something we cannot name.
