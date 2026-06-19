@@ -145,6 +145,21 @@ def test_claim_set_rejects_duplicate_labels() -> None:
         NumericClaimSet(claims=(_claim(), _claim()))
 
 
+def test_claim_is_frozen() -> None:
+    # The claim unit a check reads must be immutable (frozen=True): kills the
+    # frozen->False and model_config->None mutants on NumericClaim's config.
+    with pytest.raises(ValidationError):
+        _claim().declared_value = Decimal("1")
+
+
+def test_claim_set_is_frozen() -> None:
+    # The outer claim set must be immutable too: kills the frozen->False and
+    # model_config->None mutants on NumericClaimSet's config.
+    cs = NumericClaimSet(claims=(_claim(),))
+    with pytest.raises(ValidationError):
+        cs.claims = ()  # type: ignore[misc]
+
+
 # ---- spec round-trip (SPEC_ROUND_TRIP) -----------------------------------------
 
 
