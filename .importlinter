@@ -72,3 +72,40 @@ forbidden_modules =
     autofirm.cockpit.transport
     autofirm.cockpit.adapters
     autofirm.cockpit.composition
+
+# The cockpit adapters layer is the SOLE seam onto the on-main domain (C2): every
+# OTHER cockpit layer (the pure core, the standalone event log, the read-model DTOs,
+# the UI, and the transport) must NEVER import autofirm.frontdoor / autofirm.org /
+# autofirm.costledger / autofirm.modelgateway directly. This is what keeps the cockpit
+# add-only and read-only over the platform (cockpit-research/PLAN.md §3); a violation
+# fails this gate rather than being caught by review.
+[importlinter:contract:cockpit-adapters-are-the-only-on-main-seam]
+name = Only cockpit.adapters may import on-main domain packages
+type = forbidden
+source_modules =
+    autofirm.cockpit.core
+    autofirm.cockpit.eventlog
+    autofirm.cockpit.readmodels
+    autofirm.cockpit.tui
+    autofirm.cockpit.transport
+forbidden_modules =
+    autofirm.frontdoor
+    autofirm.org
+    autofirm.costledger
+    autofirm.modelgateway
+
+# The standalone event log and the read-model DTOs sit BELOW the adapters/UI: they must
+# not import the UI, the transport, the adapters, or the composition root (mirrors the
+# cockpit-core-must-be-pure intent so eventlog/readmodels stay independently testable and
+# free of layering cycles, cockpit-research/PLAN.md §1).
+[importlinter:contract:cockpit-eventlog-readmodels-must-not-import-upper-layers]
+name = Cockpit eventlog/readmodels must not import adapter / composition / UI / transport
+type = forbidden
+source_modules =
+    autofirm.cockpit.eventlog
+    autofirm.cockpit.readmodels
+forbidden_modules =
+    autofirm.cockpit.tui
+    autofirm.cockpit.transport
+    autofirm.cockpit.adapters
+    autofirm.cockpit.composition
