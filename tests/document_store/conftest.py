@@ -26,10 +26,33 @@ from autofirm.document_store.filed_document_record import (
     DeliverableKind,
     FiledDocumentRecord,
 )
-from autofirm.document_store.librarian_filing_service import LibrarianFilingService
+from autofirm.document_store.librarian_filing_service import (
+    LibrarianFilingService,
+    release_artifact_ref_for,
+)
+from autofirm.output_review.release_decision_gate import ReleaseDecision
+from autofirm.output_review.review_verdict_contract import ReviewVerdict
 
 # A fixed UTC instant so created_at is deterministic in assertions.
 FIXED_NOW = datetime(2026, 6, 16, 12, 0, 0, tzinfo=UTC)
+
+
+def authorised_release_for(record: FiledDocumentRecord) -> ReleaseDecision:
+    """An authorised release bound to ``record``'s identity (synthetic, no review IO).
+
+    Builds a clean (no-finding => passing) verdict over the record's release ref and
+    derives an authorised decision from it, so the librarian's admission guard admits
+    a genuine, ref-matching release. Used by the suite to file the happy path; the
+    P4 seam tests build deliberately-wrong decisions inline to prove the refusals.
+    """
+    ref = release_artifact_ref_for(record)
+    verdict = ReviewVerdict(artifact_ref=ref, findings=(), reviewed_at=FIXED_NOW)
+    return ReleaseDecision(
+        artifact_ref=ref,
+        final_verdict=verdict,
+        reason="synthetic authorised release for filing test",
+        decided_at=FIXED_NOW,
+    )
 
 
 @pytest.fixture

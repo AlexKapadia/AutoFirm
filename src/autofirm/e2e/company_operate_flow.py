@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from autofirm.capabilities.capability_recording_org import CapabilityRecordingOrg
 from autofirm.document_store.librarian_filing_service import LibrarianFilingService
+from autofirm.e2e.e2e_delivery_gates import E2eDeliveryGates, build_e2e_delivery_gates
 from autofirm.e2e.isolated_company_workspace import IsolatedCompanyWorkspace
 from autofirm.e2e.operate_decisions_checks import (
     check_fail_closed_guard,
@@ -52,6 +53,7 @@ def operate_company(
     recording_org: CapabilityRecordingOrg,
     librarian: LibrarianFilingService,
     workspace: IsolatedCompanyWorkspace,
+    gates: E2eDeliveryGates | None = None,
 ) -> tuple[FeatureCheck, ...]:
     """Operate ``scenario`` end-to-end; return every feature's verdict.
 
@@ -62,11 +64,16 @@ def operate_company(
             flow check uses its underlying org.
         librarian: The company's document store (the generated artifact is filed).
         workspace: The isolated workspace (the artifact is written under its root).
+        gates: The output-review + release gate pair every deliverable clears before
+            filing. Threaded by the harness so the whole run shares one audited gate;
+            when omitted a fresh real pair is built (the artifact is always gated —
+            an un-gated filing is impossible since the librarian requires a release).
 
     Returns:
         One :class:`FeatureCheck` per exercised operate-phase feature, in a stable
         order, each carrying the real-shaped evidence its assertion verified.
     """
+    delivery_gates = gates if gates is not None else build_e2e_delivery_gates()
     return (
         check_finance_statements(scenario),
         check_finance_valuation(scenario),
@@ -75,7 +82,7 @@ def operate_company(
         check_market_intel_sweep(scenario),
         check_green_light_gate(scenario),
         check_front_door_routing(scenario, recording_org),
-        check_artifact_and_filing(scenario, librarian, workspace),
+        check_artifact_and_filing(scenario, librarian, workspace, delivery_gates),
         check_heartbeat_tick(scenario),
         check_flow_handoff(scenario, recording_org.org),
         check_fail_closed_guard(scenario),

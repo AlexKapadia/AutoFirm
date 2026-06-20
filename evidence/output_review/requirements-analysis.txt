@@ -1,0 +1,23 @@
+# Analysis-only dependencies for the output_review evidence showcase.
+#
+# CLAUDE.md §3.10 dependency boundary (BINDING): these plotting / stats / diagram
+# libraries are used ONLY by the scripts under evidence/output_review/ to render the
+# graphs and flow diagrams. They are NEVER imported by any runtime module under
+# src/autofirm/ — the import-linter contract "Runtime code must not import
+# analysis-only libraries" (2 kept / 0 broken) fences them out of the runtime
+# closure. Install them into a venv ONLY to regenerate the showcase:
+#
+#     pip install -r evidence/output_review/requirements-analysis.txt
+#
+# The harness itself (golden_set/) uses ONLY the standard library + the runtime
+# autofirm package, so the measured numbers can be reproduced without any of these.
+#
+# (These mirror the repo-level `analysis` optional-dependency extra in pyproject;
+# this standalone file keeps the output_review showcase self-contained and separable
+# from the runtime package, and never touches the shared runtime dependency block.)
+
+matplotlib>=3.8     # PNG charts + black-&-white flow diagrams
+plotly>=5.20        # interactive HTML charts
+kaleido>=0.2        # static PNG export for plotly (optional; matplotlib is the PNG path)
+scipy>=1.13         # statistical helpers (the harness ships its own pure Wilson CI)
+statsmodels>=0.14   # confidence-interval cross-checks

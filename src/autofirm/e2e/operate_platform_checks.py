@@ -20,8 +20,15 @@ from autofirm.document_store.filed_document_record import (
     DeliverableKind,
     FiledDocumentRecord,
 )
-from autofirm.document_store.librarian_filing_service import LibrarianFilingService
+from autofirm.document_store.librarian_filing_service import (
+    LibrarianFilingService,
+    release_artifact_ref_for,
+)
 from autofirm.e2e.company_build_flow import FOUNDING_EPOCH
+from autofirm.e2e.deliverable_kind_to_review_artifact_kind import review_artifact_kind_for
+from autofirm.e2e.docx_spec_round_trip_extractor import build_document_spec_round_trip
+from autofirm.e2e.e2e_delivery_gates import E2eDeliveryGates
+from autofirm.e2e.gate_then_file import gate_then_file
 from autofirm.e2e.isolated_company_workspace import IsolatedCompanyWorkspace
 from autofirm.e2e.operate_front_door_check import check_front_door_routing
 from autofirm.e2e.public_company_scenarios import PublicCompanyScenario
@@ -49,6 +56,7 @@ from autofirm.market_intel.market_signal_source import (
     RawMarketSignal,
 )
 from autofirm.org.org_lifecycle_engine import DynamicOrg
+from autofirm.output_review.reviewable_artifact_contract import ReviewableArtifact
 
 __all__ = [
     "check_artifact_and_filing",
@@ -148,12 +156,15 @@ def check_artifact_and_filing(
     scenario: PublicCompanyScenario,
     librarian: LibrarianFilingService,
     workspace: IsolatedCompanyWorkspace,
+    gates: E2eDeliveryGates,
 ) -> FeatureCheck:
-    """Generate a REAL investor-ready ``.docx`` and file it in the isolated store.
+    """Generate a REAL investor-ready ``.docx``, REVIEW it, then file it if released.
 
     The artifact is written under the company's ``.autofirm/`` root (a real file on
-    disk in the deletable workspace) and then catalogued by the librarian, proving
-    the artifacts plane and the document store work together over the boundary.
+    disk in the deletable workspace), then routed through the output-review gate
+    (the FILE_OPENS_CLEAN probe reads the bytes; SPEC_ROUND_TRIP re-reads the title)
+    and the release authority BEFORE the librarian catalogues it — proving no
+    deliverable reaches the store without an authorised, ref-bound release (P4).
     """
     periods = len(scenario.projected_cash_flows)
     spec = DocumentSpec(
@@ -181,7 +192,22 @@ def check_artifact_and_filing(
         provenance="e2e.operate_platform_checks:artifact",
         created_at=FOUNDING_EPOCH,
     )
-    entry = librarian.file(record)
+    # The reviewable handle binds to THIS record's release ref; FILE_OPENS_CLEAN
+    # reads ``written`` and SPEC_ROUND_TRIP gets a GENUINE title re-read from disk.
+    artifact = ReviewableArtifact(
+        artifact_ref=release_artifact_ref_for(record),
+        kind=review_artifact_kind_for(record.kind),
+        path=written,
+        spec_round_trip=build_document_spec_round_trip(spec.title, written),
+    )
+    entry = gate_then_file(
+        librarian,
+        record,
+        artifact=artifact,
+        gate=gates.review_gate,
+        release_gate=gates.release_gate,
+        reason="investor update passed the deterministic output-review floor",
+    )
     ok = (
         written.exists()
         and written.stat().st_size > 0  # a real, non-empty .docx was produced
@@ -191,7 +217,7 @@ def check_artifact_and_filing(
         feature=FeatureName.ARTIFACT_GENERATED,
         phase="operate",
         status=FeatureStatus.PASSED if ok else FeatureStatus.FAILED,
-        detail="real .docx artifact written under the isolated root and filed",
+        detail="real .docx artifact reviewed, released, and filed under the isolated root",
         evidence={"bytes": str(written.stat().st_size), "filed_path": entry.relative_path},
     )
 
