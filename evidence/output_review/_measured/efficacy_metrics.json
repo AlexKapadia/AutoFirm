@@ -1,0 +1,77 @@
+{
+  "corpus_size": 18,
+  "checks_in_floor": 7,
+  "headline": {
+    "planted_total": 14,
+    "controls_total": 4,
+    "escapes": 0,
+    "escape_rate": 0.0,
+    "escape_rate_wilson95": [
+      0.0,
+      0.21531701192718142
+    ],
+    "false_positives": 0,
+    "false_positive_rate": 0.0,
+    "false_positive_rate_wilson95": [
+      0.0,
+      0.48990002040399916
+    ],
+    "unreviewed_human_error_baseline": 0.86,
+    "human_self_estimated_error": 0.18
+  },
+  "detection_by_panko_class": {
+    "MECHANICAL": {
+      "planted": 7,
+      "blocked": 7,
+      "detected_by_correct_check": 7,
+      "detection_rate": 1.0,
+      "wilson95_low": 0.6456611570247934,
+      "wilson95_high": 1.0
+    },
+    "OMISSION": {
+      "planted": 1,
+      "blocked": 1,
+      "detected_by_correct_check": 1,
+      "detection_rate": 1.0,
+      "wilson95_low": 0.20654329147389294,
+      "wilson95_high": 1.0
+    },
+    "PURE_LOGIC": {
+      "planted": 6,
+      "blocked": 6,
+      "detected_by_correct_check": 6,
+      "detection_rate": 1.0,
+      "wilson95_low": 0.6096569663469354,
+      "wilson95_high": 0.9999999999999999
+    }
+  },
+  "determinism": {
+    "runs_per_case": 200,
+    "cases": 18,
+    "total_reviews": 3600,
+    "unique_digests_per_case": {
+      "control_model_clean_a": 1,
+      "control_model_clean_b": 1,
+      "control_deck_clean": 1,
+      "control_document_clean": 1,
+      "plant_balance_off_by_0_01": 1,
+      "plant_numeric_recompute_mismatch": 1,
+      "plant_spec_value_altered": 1,
+      "plant_spec_value_missing": 1,
+      "plant_spec_value_extra": 1,
+      "plant_orphan_constant_cell": 1,
+      "plant_inconsistent_row": 1,
+      "plant_missing_line_item": 1,
+      "plant_missing_ibcs_notation": 1,
+      "plant_missing_units": 1,
+      "plant_truncated_axis": 1,
+      "plant_overlapping_elements": 1,
+      "plant_clipped_content": 1,
+      "plant_corrupt_ooxml": 1
+    },
+    "max_unique_digests": 1,
+    "all_deterministic": true
+  },
+  "fixed_clock": "2026-01-01T00:00:00+00:00",
+  "note": "EUREKA (wrong domain model) is intentionally absent from the must-block set: it is the sole defect class the deterministic floor provably cannot reach and is routed to the advisory model layer."
+}
