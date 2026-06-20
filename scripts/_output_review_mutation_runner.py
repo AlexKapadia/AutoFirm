@@ -16,7 +16,6 @@ never crash a mutant evaluation on non-ASCII output.
 from __future__ import annotations
 
 import os
-import sys
 
 import pytest
 
@@ -59,4 +58,6 @@ if __name__ == "__main__":
     # genuine survival -- mutmut reads exit 2 as "survived", which surfaces EVERY
     # mutant as a survivor and FAILS the gate loudly, forcing the operator to fix
     # MUT_TESTS. Fail-closed: a runner that collected no tests proves nothing.
-    raise SystemExit(0 if rc == 0 else (2 if rc == 5 else 1))
+    raise SystemExit(
+        0 if rc == 0 else (2 if rc == pytest.ExitCode.NO_TESTS_COLLECTED else 1)
+    )
