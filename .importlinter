@@ -82,6 +82,11 @@ forbidden_modules =
 [importlinter:contract:cockpit-adapters-are-the-only-on-main-seam]
 name = Only cockpit.adapters may import on-main domain packages
 type = forbidden
+# DIRECT-import rule: no layer below the composition edge may name an on-main package itself.
+# `allow_indirect_imports` scopes this to DIRECT imports so the legitimate C3 bridge
+# (transport -> composition -> on-main; composition is the impure edge, allowed by omission)
+# does not trip it, while a layer reaching for autofirm.org/frontdoor/... directly still fails.
+allow_indirect_imports = True
 source_modules =
     autofirm.cockpit.core
     autofirm.cockpit.eventlog
@@ -108,4 +113,33 @@ forbidden_modules =
     autofirm.cockpit.tui
     autofirm.cockpit.transport
     autofirm.cockpit.adapters
+    autofirm.cockpit.composition
+
+# The transport layer (C3 CLI + auth gate) must wire the cockpit ONLY through the composition
+# root: it may NOT reach past it into the adapters or the event log directly (it reads/records
+# events via the assembled CockpitApplication, and snapshots via composition). Importing the
+# pure cockpit.core (e.g. cockpit_version) is fine. A violation fails this gate, not review.
+[importlinter:contract:cockpit-transport-wires-only-via-composition]
+name = Cockpit transport must not import the adapters or event log directly
+type = forbidden
+# DIRECT-import rule: transport reads snapshots / records & replays events ONLY through the
+# assembled CockpitApplication. `allow_indirect_imports` permits the transport -> composition
+# -> {adapters, eventlog} chain (composition is the wiring edge) while forbidding transport
+# from naming an adapter or the event-log module itself.
+allow_indirect_imports = True
+source_modules =
+    autofirm.cockpit.transport
+forbidden_modules =
+    autofirm.cockpit.adapters
+    autofirm.cockpit.eventlog
+
+# The adapters layer sits BELOW the composition edge: it must never import the composition root
+# (mirrors the core/eventlog/readmodels rule above so the only thing reaching across every
+# layer is composition itself — no lower layer depends back on the impure edge).
+[importlinter:contract:cockpit-adapters-must-not-import-composition]
+name = Cockpit adapters must not import the composition edge
+type = forbidden
+source_modules =
+    autofirm.cockpit.adapters
+forbidden_modules =
     autofirm.cockpit.composition
