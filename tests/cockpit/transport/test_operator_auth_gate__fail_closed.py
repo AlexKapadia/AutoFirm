@@ -114,3 +114,35 @@ def test_no_secret_value_leaks_when_no_token_presented() -> None:
     with pytest.raises(AuthError) as exc:
         authenticate_operator(None, env=_env(secret))
     assert secret not in str(exc.value)
+
+
+# ------------------------- exact env-var name (kills string mutants) ------------------------- #
+
+
+def test_env_var_name_is_exactly_the_configured_key() -> None:
+    # EXACT value, not a substring: a mutant that rewrites the key (to "XX..XX" or None) would
+    # still pass the self-referential _env() helper, so pin the literal byte-for-byte.
+    assert OPERATOR_TOKEN_ENV_VAR == "AUTOFIRM_COCKPIT_TOKEN"
+
+
+# -------------- exact refusal messages (kills substring-only `match=` mutants) -------------- #
+# `pytest.raises(match=...)` is a regex SEARCH, so a wrapped "XXoperator token...XX" mutant still
+# matches the substring. These pin the message byte-for-byte so any literal mutation is killed.
+
+
+def test_not_configured_message_is_exact() -> None:
+    with pytest.raises(AuthError) as exc:
+        authenticate_operator(_SECRET, env=_env(None))
+    assert str(exc.value) == "operator token is not configured"
+
+
+def test_no_token_presented_message_is_exact() -> None:
+    with pytest.raises(AuthError) as exc:
+        authenticate_operator(None, env=_env(_SECRET))
+    assert str(exc.value) == "no operator token was presented"
+
+
+def test_mismatch_message_is_exact() -> None:
+    with pytest.raises(AuthError) as exc:
+        authenticate_operator(_SECRET + "x", env=_env(_SECRET))
+    assert str(exc.value) == "operator token did not match"

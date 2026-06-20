@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import UTC, datetime
+
+import pytest
 
 from autofirm.cockpit.composition.in_memory_sources import (
     CockpitSources,
@@ -48,3 +51,28 @@ def test_injected_kill_switch_epoch_is_reported() -> None:
     assert epoch is seed
     assert epoch.version == 7
     assert epoch.tripped is True
+
+
+# --------------------------- CockpitSources bundle immutability --------------------------- #
+
+
+def test_sources_bundle_is_frozen() -> None:
+    sources = default_in_memory_sources(_CLOCK)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        sources.cost_ledger = None  # type: ignore[misc, assignment]  # kills frozen=True->False
+
+
+def test_sources_bundle_has_no_dict_slots_enforced() -> None:
+    assert not hasattr(default_in_memory_sources(_CLOCK), "__dict__")  # kills slots=True->False
+
+
+# ----------------- root charter fields are exact (kills string mutants) ----------------- #
+
+
+def test_default_root_charter_fields_are_exact() -> None:
+    hierarchy = default_in_memory_sources(_CLOCK).org_state.hierarchy
+    charter = hierarchy.charter(hierarchy.root_id())
+    # Pin every synthetic-charter string byte-for-byte so a wrapped "XX..XX" mutant is killed.
+    assert charter.responsibilities == ("operate the company",)
+    assert charter.ownership_scope == "the whole company"
+    assert charter.success_signal == "the company runs"

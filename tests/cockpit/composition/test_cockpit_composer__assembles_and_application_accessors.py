@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+
+import pytest
 
 from autofirm.cockpit.adapters.kill_switch_source import InMemoryKillSwitchSource
 from autofirm.cockpit.composition.cockpit_application import CockpitApplication
@@ -129,6 +132,20 @@ def test_assemble_with_injected_clock_and_sources(tmp_path: Path) -> None:
     assert app.clock is clock
     assert app.org_state is sources.org_state
     assert app.cost_ledger is sources.cost_ledger
+
+
+# ------------------- application immutability (frozen + slots) ------------------- #
+
+
+def test_application_is_frozen(tmp_path: Path) -> None:
+    app = assemble_cockpit(_config(tmp_path), clock=_frozen(), sources=_synthetic_sources())
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        app.clock = _frozen()  # type: ignore[misc]  # kills frozen=True -> frozen=False
+
+
+def test_application_has_no_dict_slots_enforced(tmp_path: Path) -> None:
+    app = assemble_cockpit(_config(tmp_path), clock=_frozen(), sources=_synthetic_sources())
+    assert not hasattr(app, "__dict__")  # kills slots=True -> slots=False
 
 
 # --------------------------- accessors --------------------------- #
