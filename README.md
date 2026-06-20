@@ -129,6 +129,54 @@ is mutation-proven to **0 surviving mutants across 25 modules**.
 > Full methodology, statistics, and per-defect outcomes live in
 > **[`evidence/output_review/README.md`](evidence/output_review/README.md)**.
 
+## The operator cockpit
+
+The **operator cockpit** ([`src/autofirm/cockpit/`](src/autofirm/cockpit/)) is a
+founder-facing, terminal-first, **read-only** control plane for watching a running
+AutoFirm org. It is an **add-only consumer**: a single read-only adapter seam binds
+the platform's on-main subsystems — front-door activity, the org snapshot, cost-ledger
+spend, and the kill-switch epoch — and the cockpit only ever *observes* them, never
+mutating on-main state. It is layered low→high (`core` pure decision logic → `eventlog`
+append-only NDJSON → `adapters` → `readmodels` → `composition` DI root → `transport`
+CLI + auth gate → `tui` Textual widgets), and is import-contract-fenced so the adapters
+remain the only seam onto on-main.
+
+Install the cockpit's optional runtime deps (`textual`, `rich` — MIT-licensed, kept out
+of the deterministic runtime closure):
+
+```bash
+pip install -e ".[cockpit]"
+```
+
+There is no console script; the entry point is `python -m autofirm.cockpit <subcommand>`:
+
+```bash
+# Print the cockpit version (no auth, leaks nothing).
+python -m autofirm.cockpit version
+
+# Auth-gated commands. The EXPECTED secret is read from the environment;
+# the operator PRESENTS a token via --token. Use a real secret, not this placeholder.
+export AUTOFIRM_COCKPIT_TOKEN=<operator-secret>
+
+# Assemble the cockpit and print a read-only status snapshot.
+python -m autofirm.cockpit run     --token <operator-secret>
+
+# Replay the recorded cockpit events from the event log.
+python -m autofirm.cockpit replay  --token <operator-secret>
+
+# Launch the read-only Textual TUI (live org / spend / front-door / kill-switch /
+# event-log panels, ~2s refresh).
+AUTOFIRM_COCKPIT_TOKEN=<operator-secret> python -m autofirm.cockpit tui --token <operator-secret>
+```
+
+The auth-gated commands (`run` / `replay` / `tui`) are **fail-closed** (CLAUDE.md §5.6):
+a missing/blank configured secret, a missing/blank presented token, or any mismatch all
+refuse with a non-zero exit and emit **no** data, using a constant-time comparison; no
+token is ever logged. `run`/`replay`/`tui` accept `--event-log <path>` and
+`--currency <ISO-4217>` (defaulting to `cockpit-events.ndjson` and `USD`). Every
+non-widget cockpit module is mutation-hardened to a **1.0000** score, the TUI is proven
+by a live Textual Pilot end-to-end suite, and the whole package is add-only.
+
 ## Principles (non-negotiable)
 
 AutoFirm is built under a strict, self-activating engineering contract

@@ -52,7 +52,113 @@ source_modules =
     autofirm.org
     autofirm.output_review
     autofirm.substrate
+    autofirm.cockpit
 forbidden_modules =
     openpyxl
     pptx
     docx
+
+# The cockpit's pure decision core (cockpit/core/**) must stay side-effect-free and
+# UI-agnostic: it may NOT import the Textual UI, the CLI transport, or the backend
+# adapters (cockpit-research/PLAN.md §1.1, §5). Keeping the core pure is what makes it
+# the mutation-testing target and lets the UI be replaced without touching logic. A
+# violation fails this gate rather than being caught by review.
+[importlinter:contract:cockpit-core-must-be-pure]
+name = Cockpit pure core must not import UI / transport / adapter layers
+type = forbidden
+source_modules =
+    autofirm.cockpit.core
+forbidden_modules =
+    autofirm.cockpit.tui
+    autofirm.cockpit.transport
+    autofirm.cockpit.adapters
+    autofirm.cockpit.composition
+
+# The cockpit adapters layer is the SOLE seam onto the on-main domain (C2): every
+# OTHER cockpit layer (the pure core, the standalone event log, the read-model DTOs,
+# the UI, and the transport) must NEVER import autofirm.frontdoor / autofirm.org /
+# autofirm.costledger / autofirm.modelgateway directly. This is what keeps the cockpit
+# add-only and read-only over the platform (cockpit-research/PLAN.md §3); a violation
+# fails this gate rather than being caught by review.
+[importlinter:contract:cockpit-adapters-are-the-only-on-main-seam]
+name = Only cockpit.adapters may import on-main domain packages
+type = forbidden
+# DIRECT-import rule: no layer below the composition edge may name an on-main package itself.
+# `allow_indirect_imports` scopes this to DIRECT imports so the legitimate C3 bridge
+# (transport -> composition -> on-main; composition is the impure edge, allowed by omission)
+# does not trip it, while a layer reaching for autofirm.org/frontdoor/... directly still fails.
+allow_indirect_imports = True
+source_modules =
+    autofirm.cockpit.core
+    autofirm.cockpit.eventlog
+    autofirm.cockpit.readmodels
+    autofirm.cockpit.tui
+    autofirm.cockpit.transport
+forbidden_modules =
+    autofirm.frontdoor
+    autofirm.org
+    autofirm.costledger
+    autofirm.modelgateway
+
+# The standalone event log and the read-model DTOs sit BELOW the adapters/UI: they must
+# not import the UI, the transport, the adapters, or the composition root (mirrors the
+# cockpit-core-must-be-pure intent so eventlog/readmodels stay independently testable and
+# free of layering cycles, cockpit-research/PLAN.md §1).
+[importlinter:contract:cockpit-eventlog-readmodels-must-not-import-upper-layers]
+name = Cockpit eventlog/readmodels must not import adapter / composition / UI / transport
+type = forbidden
+source_modules =
+    autofirm.cockpit.eventlog
+    autofirm.cockpit.readmodels
+forbidden_modules =
+    autofirm.cockpit.tui
+    autofirm.cockpit.transport
+    autofirm.cockpit.adapters
+    autofirm.cockpit.composition
+
+# The transport layer (C3 CLI + auth gate) must wire the cockpit ONLY through the composition
+# root: it may NOT reach past it into the adapters or the event log directly (it reads/records
+# events via the assembled CockpitApplication, and snapshots via composition). Importing the
+# pure cockpit.core (e.g. cockpit_version) is fine. A violation fails this gate, not review.
+[importlinter:contract:cockpit-transport-wires-only-via-composition]
+name = Cockpit transport must not import the adapters or event log directly
+type = forbidden
+# DIRECT-import rule: transport reads snapshots / records & replays events ONLY through the
+# assembled CockpitApplication. `allow_indirect_imports` permits the transport -> composition
+# -> {adapters, eventlog} chain (composition is the wiring edge) while forbidding transport
+# from naming an adapter or the event-log module itself.
+allow_indirect_imports = True
+source_modules =
+    autofirm.cockpit.transport
+forbidden_modules =
+    autofirm.cockpit.adapters
+    autofirm.cockpit.eventlog
+
+# The adapters layer sits BELOW the composition edge: it must never import the composition root
+# (mirrors the core/eventlog/readmodels rule above so the only thing reaching across every
+# layer is composition itself — no lower layer depends back on the impure edge).
+[importlinter:contract:cockpit-adapters-must-not-import-composition]
+name = Cockpit adapters must not import the composition edge
+type = forbidden
+source_modules =
+    autofirm.cockpit.adapters
+forbidden_modules =
+    autofirm.cockpit.composition
+
+# The Textual TUI (C4) renders read-only snapshots ONLY via the composition root + read-models:
+# it may NOT reach past that edge into the backend adapters or the standalone event log directly
+# (it reads/records via the assembled CockpitApplication, and renders the read-model DTOs). The
+# on-main fence for the tui already lives in the seam contract above; this adds the adapter/
+# eventlog fence so the tui stays a pure presentation layer (cockpit-research/PLAN.md §5).
+[importlinter:contract:cockpit-tui-renders-only-via-composition]
+name = Cockpit tui must not import the adapters or event log directly
+type = forbidden
+# DIRECT-import rule: the tui binds to composition/read-models; the indirect chain
+# (tui -> composition -> {adapters, eventlog}) is the wiring edge and is permitted, exactly
+# like the transport contract. Naming an adapter or the event-log module itself still fails.
+allow_indirect_imports = True
+source_modules =
+    autofirm.cockpit.tui
+forbidden_modules =
+    autofirm.cockpit.adapters
+    autofirm.cockpit.eventlog

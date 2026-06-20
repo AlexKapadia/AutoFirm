@@ -51,3 +51,9 @@ Thumbs.db
 # --- Analysis artifacts that are regenerated (keep evidence/ committed, ignore scratch) ---
 evidence/_scratch/
 *.tmp
+
+# --- Operator cockpit (cockpit-research/PLAN.md §9.3) ---
+# Planning research is local-only; the live append-only event log is a runtime
+# artifact (synthetic, never finance data) regenerated per run — both git-ignored.
+cockpit-research/
+.autofirm-cockpit/

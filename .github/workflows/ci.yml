@@ -71,7 +71,7 @@ jobs:
       - name: Install (runtime + dev + test extras)
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[dev,test,artifacts]"
+          python -m pip install -e ".[dev,test,artifacts,cockpit]"
 
       - name: Gate 1a -- ruff lint (self-documenting-name + style)
         run: python -m ruff check src tests scripts
@@ -139,7 +139,7 @@ jobs:
       - name: Install (runtime + test extras)
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[test,artifacts]"
+          python -m pip install -e ".[test,artifacts,cockpit]"
 
       - name: Run the full mutation gate (fail-closed on any survivor)
         # The helper runs `mutmut run` over pyproject's paths_to_mutate, then
