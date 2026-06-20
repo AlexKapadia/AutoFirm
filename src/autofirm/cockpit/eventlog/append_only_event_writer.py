@@ -109,7 +109,12 @@ class AppendOnlyEventWriter:
         """
         if not self._path.exists():
             return 0
-        last_line: str | None = None
+        # The `str | None` annotation is an EQUIVALENT-mutant site: under
+        # `from __future__ import annotations` (and as a local annotation) it is never
+        # evaluated, so mutmut's `|`->`&` mutation is semantically inert and unkillable by
+        # any test. It is still required for mypy (the var is later assigned a str). The
+        # trailing pragma tells mutmut not to generate that one undetectable mutant.
+        last_line: str | None = None  # pragma: no mutate (equivalent annotation mutant)
         with self._path.open("r", encoding=_ENCODING) as handle:
             for line in handle:
                 if line.strip():  # ignore a trailing newline / blank tail line
