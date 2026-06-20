@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from autofirm.cockpit.composition.cockpit_application import CockpitApplication
 from autofirm.cockpit.composition.cockpit_composer import assemble_cockpit
 from autofirm.cockpit.composition.cockpit_config import CockpitConfig
 from autofirm.cockpit.transport.cockpit_cli import build_tui_app, main
@@ -46,6 +47,28 @@ def test_tui_with_correct_token_builds_and_runs_app(
     assert code == _OK
     assert len(launched) == 1
     assert isinstance(launched[0], CockpitApp)
+
+
+def test_tui_launches_app_holding_a_real_assembled_cockpit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The launched TUI must hold the ASSEMBLED cockpit, not a ``None`` read model.
+
+    Kills the `app = assemble_cockpit(...)` -> `app = None` mutant in ``_tui``: with
+    ``app=None`` the handler still builds a ``CockpitApp(None)`` and runs it, so an
+    ``isinstance(..., CockpitApp)`` check alone passes. Asserting the launched app's
+    ``_read_model`` is a real :class:`CockpitApplication` makes the mutation fail.
+    """
+    launched: list[CockpitApp] = []
+    monkeypatch.setattr(CockpitApp, "run", lambda self, *a, **k: launched.append(self))
+    code = main(
+        ["tui", "--token", _SECRET, "--event-log", str(tmp_path / "e.ndjson")], env=_env()
+    )
+    assert code == _OK
+    assert len(launched) == 1
+    # boundary-exact: the read model is the assembled cockpit, never ``None``.
+    assert launched[0]._read_model is not None
+    assert isinstance(launched[0]._read_model, CockpitApplication)
 
 
 def test_tui_with_wrong_token_refuses_and_never_launches(
