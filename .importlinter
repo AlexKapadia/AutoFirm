@@ -50,6 +50,7 @@ source_modules =
     autofirm.modelgateway
     autofirm.orchestration
     autofirm.org
+    autofirm.output_review
     autofirm.substrate
     autofirm.cockpit
 forbidden_modules =

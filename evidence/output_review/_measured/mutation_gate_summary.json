@@ -1,0 +1,136 @@
+{
+  "package": "autofirm.output_review",
+  "gate": "scripts/run_mutation_gate.py",
+  "grading": "fail-closed: only ok_killed counts as killed; any survivor exits 1",
+  "modules_gated": 25,
+  "total_survivors": 0,
+  "all_modules_score_1_0": true,
+  "source": "cited gate result (per-module hardening commits), not a fresh run",
+  "per_module": {
+    "accounting_identity_check": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "balance_sheet_facts": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "correction_loop_state": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": 9
+    },
+    "correction_send_back_builder": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "deck_structural_facts": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "default_output_review_gate_factory": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "delivery_admission_guard": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "fact_value_guards": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "fast_lint_check": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "file_opens_clean_check": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "ibcs_success_rubric_check": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "model_lint_facts": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "numeric_claim_facts": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "numeric_recomputation_check": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "output_review_errors": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "output_review_gate": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "release_decision_gate": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": 2
+    },
+    "review_check_protocol": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "review_finding_and_severity_contracts": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "review_verdict_contract": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "reviewable_artifact_contract": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "reviewable_artifact_facts": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "spec_artifact_round_trip_check": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "spec_round_trip_facts": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": null
+    },
+    "visual_integrity_lint_check": {
+      "survivors": 0,
+      "mutation_score": 1.0,
+      "survivors_closed_during_hardening": 1
+    }
+  }
+}

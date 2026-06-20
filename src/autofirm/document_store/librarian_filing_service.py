@@ -53,8 +53,35 @@ from autofirm.document_store.filed_document_record import (
     DeliverableKind,
     FiledDocumentRecord,
 )
+from autofirm.output_review.delivery_admission_guard import require_authorised_release
+from autofirm.output_review.release_decision_gate import ReleaseDecision
 
-__all__ = ["CatalogEntry", "LibrarianFilingError", "LibrarianFilingService"]
+__all__ = [
+    "CatalogEntry",
+    "LibrarianFilingError",
+    "LibrarianFilingService",
+    "release_artifact_ref_for",
+]
+
+
+def release_artifact_ref_for(record: FiledDocumentRecord) -> str:
+    """Return the stable identity a release must authorise to file ``record``.
+
+    The convention (single source of truth for the delivery seam): a
+    :class:`~autofirm.output_review.release_decision_gate.ReleaseDecision`
+    authorising a filing MUST carry ``artifact_ref == release_artifact_ref_for(record)``.
+    The identity is ``"<logical_id>@v<version>"`` — exactly the
+    ``(logical_id, version)`` tuple the librarian already treats as a document's
+    stable, clobber-detecting identity — so a release is bound to one specific
+    document version and cannot be replayed against another (CLAUDE.md §5.6).
+
+    Args:
+        record: The deliverable whose release identity is wanted.
+
+    Returns:
+        The deterministic release-binding ref for that record version.
+    """
+    return f"{record.logical_id}@v{record.version}"
 
 
 class LibrarianFilingError(Exception):
@@ -102,20 +129,42 @@ class LibrarianFilingService:
         # *different* document resolving to an existing path is caught fail-closed.
         self._path_owner: dict[str, str] = {}
 
-    def file(self, record: FiledDocumentRecord) -> CatalogEntry:
+    def file(
+        self, record: FiledDocumentRecord, *, release_decision: ReleaseDecision | None
+    ) -> CatalogEntry:
         """File ``record`` into the store, fail-closed, and catalog it.
+
+        This is the outbound artifact-delivery chokepoint, so the review gate is
+        made LOAD-BEARING here: filing is refused unless ``release_decision`` is an
+        authorised release whose ``artifact_ref`` binds to THIS record's stable
+        identity. By convention a ``ReleaseDecision`` authorising this filing must
+        carry ``artifact_ref == release_artifact_ref_for(record)`` (i.e.
+        ``"<logical_id>@v<version>"``); the admission guard refuses anything else
+        BEFORE any catalog/index mutation (fail-closed — CLAUDE.md §5.6).
 
         Args:
             record: The validated deliverable to file.
+            release_decision: The output-review lane's authorised release for this
+                exact artifact. Required (no default): an un-gated filing is a
+                defect, so the caller must present a decision (``None`` is refused).
 
         Returns:
             The immutable :class:`CatalogEntry` appended to the catalog.
 
         Raises:
+            OutputReviewError: If ``release_decision`` is ``None``, not authorised,
+                or authorises a different artifact than ``record`` (refused before
+                any side effect, via the admission guard).
             LibrarianFilingError: If the filing would escape the store boundary,
                 clobber an already-filed ``(logical_id, version)``, or collide
                 with a *different* logical document at the same path.
         """
+        # fail-closed, FIRST: refuse before any side effect unless an authorised
+        # release that binds to THIS record's identity is presented (P4 seam).
+        require_authorised_release(
+            release_decision, expected_artifact_ref=release_artifact_ref_for(record)
+        )
+
         version_key = (record.logical_id, record.version)
         # fail-closed: never overwrite an existing version of this document.
         if version_key in self._filed_versions:

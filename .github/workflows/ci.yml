@@ -102,6 +102,12 @@ jobs:
       - name: gitleaks (fail-closed on any finding)
         uses: gitleaks/gitleaks-action@v2
         env:
+          # gitleaks-action@v2 REQUIRES GITHUB_TOKEN to scan pull_request events
+          # (it diffs the PR commits via the API); without it the action errors out
+          # before scanning, failing the build for the wrong reason. Supplying the
+          # auto-provisioned token lets the scan actually run -- this strengthens the
+          # fail-closed gate (it can now run on PRs), it does not weaken it.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
   # ---------------------------------------------------------------------------
