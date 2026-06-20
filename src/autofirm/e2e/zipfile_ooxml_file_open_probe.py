@@ -86,7 +86,7 @@ class ZipfileOoxmlFileOpenProbe:
         # we cannot affirm it opens clean — refuse rather than guess a member.
         primary_part = _PRIMARY_PART_FOR_KIND.get(kind)
         if primary_part is None:
-            return (False, f"no OOXML primary part defined for kind {kind.value!r}")
+            return (False, f"no OOXML primary part defined for kind {kind!r}")
 
         try:
             # fail-closed: a non-ZIP file is not an OOXML package — reject without

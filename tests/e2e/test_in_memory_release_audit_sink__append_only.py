@@ -63,6 +63,15 @@ def test_entry_is_frozen() -> None:
     raise AssertionError("ReleaseAuditEntry must be frozen (append-only fact)")
 
 
+def test_entry_uses_slots_no_instance_dict() -> None:
+    # slots=True removes the per-instance __dict__ (a real, observable property):
+    # an entry is a fixed-shape, memory-tight record, not an open attribute bag.
+    entry = ReleaseAuditEntry(
+        artifact_ref="a@v1", outcome=AuditOutcome.SUCCESS, reason="ok", decided_at=_AT
+    )
+    assert not hasattr(entry, "__dict__")
+
+
 def test_empty_sink_has_no_entries() -> None:
     assert InMemoryReleaseAuditSink().entries() == ()
 

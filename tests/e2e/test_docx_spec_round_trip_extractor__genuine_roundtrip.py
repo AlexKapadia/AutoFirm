@@ -51,6 +51,16 @@ def test_round_trip_is_genuine_and_matches(tmp_path: Path) -> None:
     assert rt.extracted_values == {TITLE_KEY: _TITLE}  # re-read from disk, equal
 
 
+def test_round_trip_key_is_literally_title(tmp_path: Path) -> None:
+    # Pin the exported key string itself (hard-coded, not via TITLE_KEY) so a
+    # mutated constant cannot pass by comparing against its own mutated self.
+    assert TITLE_KEY == "title"
+    docx = _docx_with_title(tmp_path, _TITLE)
+    rt = build_document_spec_round_trip(_TITLE, docx)
+    assert rt.declared_values == {"title": _TITLE}
+    assert rt.extracted_values == {"title": _TITLE}
+
+
 def test_extracted_is_not_copied_from_declared(tmp_path: Path) -> None:
     # If the declared title differs from what is on disk, the round-trip records
     # the mismatch (extracted comes from the FILE, never from the declared arg).
@@ -91,25 +101,46 @@ def test_unicode_title_round_trips(tmp_path: Path) -> None:
     assert extract_document_title(docx) == title
 
 
+def _write_document_xml(path: Path, body_inner: bytes) -> None:
+    """Write a minimal docx whose word/document.xml body holds ``body_inner``."""
+    xml = (
+        b'<?xml version="1.0"?>'
+        b'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        b"<w:body>" + body_inner + b"</w:body></w:document>"
+    )
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("[Content_Types].xml", b"<Types/>")
+        archive.writestr("word/document.xml", xml)
+
+
+def test_multi_run_title_concatenates_runs_in_order(tmp_path: Path) -> None:
+    # A Title paragraph split across runs (incl. an EMPTY run) must concatenate
+    # with NO separator and treat a None text node as "" — pins both the join
+    # separator and the `or ""` fallback exactly.
+    path = tmp_path / "multirun.docx"
+    _write_document_xml(
+        path,
+        b'<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr>'
+        b"<w:r><w:t>Alpha</w:t></w:r>"
+        b"<w:r><w:t/></w:r>"  # empty run: ElementTree .text is None
+        b"<w:r><w:t>Beta</w:t></w:r></w:p>",
+    )
+    assert extract_document_title(path) == "AlphaBeta"
+
+
 def test_non_docx_file_is_refused(tmp_path: Path) -> None:
     junk = tmp_path / "not.docx"
     junk.write_bytes(b"not a zip")
     with pytest.raises(OutputReviewError) as exc:
         extract_document_title(junk)
-    assert "cannot read docx document part" in str(exc.value)
+    # Exact message (kills literal mutants): the caught exception type is named.
+    assert str(exc.value) == "cannot read docx document part from not.docx: BadZipFile"
 
 
 def test_titleless_docx_is_refused(tmp_path: Path) -> None:
     # A valid zip whose document.xml has no Title-styled paragraph -> refuse.
     path = tmp_path / "titleless.docx"
-    body = (
-        b'<?xml version="1.0"?>'
-        b'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
-        b"<w:body><w:p><w:r><w:t>no title style here</w:t></w:r></w:p></w:body></w:document>"
-    )
-    with zipfile.ZipFile(path, "w") as archive:
-        archive.writestr("[Content_Types].xml", b"<Types/>")
-        archive.writestr("word/document.xml", body)
+    _write_document_xml(path, b"<w:p><w:r><w:t>no title style here</w:t></w:r></w:p>")
     with pytest.raises(OutputReviewError) as exc:
         extract_document_title(path)
-    assert "no 'Title'-styled paragraph found" in str(exc.value)
+    assert str(exc.value) == "no 'Title'-styled paragraph found in titleless.docx"

@@ -37,6 +37,17 @@ from autofirm.output_review.reviewable_artifact_contract import ArtifactKind
 
 __all__ = ["review_artifact_kind_for"]
 
+# The closed mapping from a reviewable store kind to its output-review family.
+# Narrative deliverables (reports, memos, charters) are reviewed as business
+# documents; models and decks map to their own families. IMAGE is deliberately
+# ABSENT — it has no OOXML/PDF review family (handled fail-closed below).
+_REVIEW_ARTIFACT_KIND: dict[DeliverableKind, ArtifactKind] = {
+    DeliverableKind.REPORT: ArtifactKind.BUSINESS_DOCUMENT,
+    DeliverableKind.DOC: ArtifactKind.BUSINESS_DOCUMENT,
+    DeliverableKind.MODEL: ArtifactKind.FINANCIAL_MODEL,
+    DeliverableKind.DECK: ArtifactKind.SLIDE_DECK,
+}
+
 
 def review_artifact_kind_for(kind: DeliverableKind) -> ArtifactKind:
     """Return the review :class:`ArtifactKind` a ``DeliverableKind`` is gated as.
@@ -53,22 +64,15 @@ def review_artifact_kind_for(kind: DeliverableKind) -> ArtifactKind:
         OutputReviewError: if ``kind`` has no reviewable artifact family (``IMAGE``)
             or is an unhandled/unknown kind (fail-closed — CLAUDE.md §5.6).
     """
-    match kind:
-        case DeliverableKind.REPORT | DeliverableKind.DOC:
-            # Narrative deliverables (memos, reports, charters) are reviewed as
-            # business documents — the docx/pdf deterministic-floor family.
-            return ArtifactKind.BUSINESS_DOCUMENT
-        case DeliverableKind.MODEL:
-            return ArtifactKind.FINANCIAL_MODEL
-        case DeliverableKind.DECK:
-            return ArtifactKind.SLIDE_DECK
-        case DeliverableKind.IMAGE:
-            # fail-closed: an image has no OOXML/PDF review family; mapping it to a
-            # document family would gate it under the wrong checks (a false pass).
-            raise OutputReviewError(
-                f"deliverable kind {kind.value!r} has no reviewable artifact kind"
-            )
-        case _:
-            # fail-closed: an unhandled (e.g. newly-added or out-of-vocabulary) kind
-            # must not silently map — refuse so a new kind cannot slip through.
-            raise OutputReviewError(f"unknown deliverable kind {kind!r}")
+    mapped = _REVIEW_ARTIFACT_KIND.get(kind)
+    if mapped is not None:
+        return mapped
+    if kind is DeliverableKind.IMAGE:
+        # fail-closed: an image has no OOXML/PDF review family; mapping it to a
+        # document family would gate it under the wrong checks (a false pass).
+        raise OutputReviewError(
+            f"deliverable kind {kind.value!r} has no reviewable artifact kind"
+        )
+    # fail-closed: an unhandled (e.g. newly-added or out-of-vocabulary) kind must
+    # not silently map — refuse so a new kind cannot slip through unreviewed.
+    raise OutputReviewError(f"unknown deliverable kind {kind!r}")

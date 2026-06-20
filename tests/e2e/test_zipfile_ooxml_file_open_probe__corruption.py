@@ -110,7 +110,26 @@ def test_corrupt_member_is_not_clean(tmp_path: Path) -> None:
     path.write_bytes(bytes(raw))
     opens_clean, detail = ZipfileOoxmlFileOpenProbe().probe(path, ArtifactKind.BUSINESS_DOCUMENT)
     assert opens_clean is False
-    assert detail != ""
+    # testzip() names the corrupt member; the detail pins it exactly.
+    assert detail == "corrupt zip member: word/document.xml"
+
+
+def test_corrupt_central_directory_handled_not_raised(tmp_path: Path) -> None:
+    # A valid EOCD (is_zipfile True) but a broken central-directory header makes
+    # ZipFile() raise BadZipFile -> the probe catches it and returns it as the
+    # detail, NEVER letting the exception escape (the fail-closed except branch).
+    path = tmp_path / "badcd.docx"
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr(_CONTENT_TYPES, b"<Types/>")
+        archive.writestr("word/document.xml", b"<w:document/>")
+    raw = bytearray(path.read_bytes())
+    cd_header = raw.find(b"PK\x01\x02")  # central-directory file header signature
+    assert cd_header != -1
+    raw[cd_header + 2] = 0xFF  # corrupt the signature so ZipFile() rejects the CD
+    path.write_bytes(bytes(raw))
+    opens_clean, detail = ZipfileOoxmlFileOpenProbe().probe(path, ArtifactKind.BUSINESS_DOCUMENT)
+    assert opens_clean is False
+    assert detail == "BadZipFile: Bad magic number for central directory"
 
 
 def test_missing_file_reported_not_raised(tmp_path: Path) -> None:
