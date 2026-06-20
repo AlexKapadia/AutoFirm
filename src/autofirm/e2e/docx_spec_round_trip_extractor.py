@@ -15,8 +15,9 @@ Why stdlib, not python-docx
 A ``.docx`` is a ZIP whose ``word/document.xml`` is WordprocessingML. The title is
 written as the first paragraph in the ``Title`` style, so its text can be re-read
 with the standard-library :mod:`zipfile` + :mod:`xml.etree.ElementTree` alone — no
-python-docx import, keeping the e2e closure free of OOXML libs (import-linter
-contract ``core-runtime-must-not-import-artifact-libs``).
+OOXML library is needed. Staying stdlib-only keeps the extractor portable and
+dependency-light, which is why it parses the bytes directly rather than reaching
+for python-docx.
 
 Security / compliance invariants upheld (CLAUDE.md §5.6, §3.11)
 --------------------------------------------------------------

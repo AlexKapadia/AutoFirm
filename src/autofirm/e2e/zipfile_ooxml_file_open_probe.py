@@ -16,12 +16,12 @@ container — *structurally*, using only the standard-library :mod:`zipfile`:
 
 Why stdlib zipfile, not python-docx
 -----------------------------------
-The deterministic core must stay free of the heavy OOXML libraries
-(import-linter contract ``core-runtime-must-not-import-artifact-libs``). An OOXML
-file IS a ZIP, so its structural validity — "does it open without a repair
-dialog?" — is fully checkable with :mod:`zipfile` alone, needing no
-python-docx/openpyxl/python-pptx import. The probe is therefore portable and
-network-free, and the e2e package never pulls an OOXML lib into its closure.
+This probe needs no OOXML library at all. An OOXML file IS a ZIP, so its
+structural validity — "does it open without a repair dialog?" — is fully
+checkable with :mod:`zipfile` alone, needing no python-docx/openpyxl/python-pptx
+import. Staying stdlib-only keeps the probe portable, network-free, and
+dependency-light, which is why it is implemented this way rather than reaching for
+a heavy OOXML reader.
 
 Security / compliance invariants upheld (CLAUDE.md §5.6, §3.11)
 --------------------------------------------------------------
