@@ -10,10 +10,13 @@ documents); it does not re-run pytest itself. Analysis-only.
 from __future__ import annotations
 
 import collect_real_evidence
+import render_activation_lifecycle_flow
 import render_build_operate_flow
+import render_cockpit_control_plane_flow
 import render_company_financials
 import render_coverage_bar
 import render_e2e_matrix
+import render_output_review_gate_flow
 import render_statistics_page
 import render_system_architecture
 
@@ -29,9 +32,12 @@ def main() -> None:
     render_e2e_matrix.main()
     render_company_financials.main()
 
-    # 3. Flow diagrams (B&W, PNG + HTML).
+    # 3. Flow diagrams (B&W, PNG + HTML) — whole-system + per-component.
     render_system_architecture.main()
     render_build_operate_flow.main()
+    render_activation_lifecycle_flow.main()
+    render_output_review_gate_flow.main()
+    render_cockpit_control_plane_flow.main()
 
     # 4. Statistical-evidence page (consumes the artifacts above).
     render_statistics_page.main()

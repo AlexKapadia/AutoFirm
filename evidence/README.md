@@ -21,8 +21,11 @@ _raw/         collected real evidence (evidence_data.json) the generators consum
 | `graphs/coverage_by_package.png` / `.html` | Line + branch coverage of all 18 packages vs the 90/85 gates |
 | `graphs/e2e_pass_matrix.png` / `.html` | 15 features × 4 public companies — every cell asserted correct |
 | `graphs/company_financials.png` / `.html` | Net income / total assets / DCF value the engine produced |
-| `diagrams/system_architecture.png` / `.html` | Whole-system architecture — 18 packages in flow order |
+| `diagrams/system_architecture.png` / `.html` | Whole-system architecture — 26 packages in flow order |
 | `diagrams/build_operate_flow.png` / `.html` | Per-company build → operate → asserted-result flow |
+| `diagrams/activation_lifecycle_flow.png` / `.html` | `autofirm up` — converge → compose → supervise → prove |
+| `diagrams/output_review_gate_flow.png` / `.html` | Fail-closed output review — checks → derived verdict → deliver/send-back |
+| `diagrams/cockpit_control_plane_flow.png` / `.html` | Operator cockpit — bind live platform → pure projections → TUI → audited commands |
 | `stats/statistical_evidence.md` | Tests, coverage stats, the e2e fraction, determinism proof |
 
 ## Headline numbers (real)
