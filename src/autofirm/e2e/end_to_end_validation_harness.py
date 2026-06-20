@@ -21,6 +21,7 @@ from pathlib import Path
 
 from autofirm.e2e.company_build_flow import build_company
 from autofirm.e2e.company_operate_flow import operate_company
+from autofirm.e2e.e2e_delivery_gates import E2eDeliveryGates, build_e2e_delivery_gates
 from autofirm.e2e.isolated_company_workspace import (
     IsolatedCompanyWorkspace,
     create_isolated_company_workspace,
@@ -58,21 +59,27 @@ class EndToEndValidationHarness:
 
     def run(self) -> ValidationSummary:
         """Build + operate every scenario; write per-company results; return the summary."""
+        # One real review+release gate pair for the whole run, on the deterministic
+        # founding clock: every deliverable (build-time charter, operate-time update)
+        # clears the SAME audited gate, and its audit trail accumulates in one sink.
+        gates = build_e2e_delivery_gates()
         results: list[ScenarioResult] = []
         for scenario in self._scenarios:
-            results.append(self._run_one(scenario))
+            results.append(self._run_one(scenario, gates))
         return ValidationSummary(scenarios=tuple(results))
 
-    def _run_one(self, scenario: PublicCompanyScenario) -> ScenarioResult:
+    def _run_one(
+        self, scenario: PublicCompanyScenario, gates: E2eDeliveryGates
+    ) -> ScenarioResult:
         """Build + operate one company in its own isolated workspace; persist the result."""
         workspace = create_isolated_company_workspace(
             company_slug=scenario.slug, corpus_dir=self._corpus_dir
         )
         self._workspaces.append(workspace)
 
-        built = build_company(scenario, workspace)
+        built = build_company(scenario, workspace, gates)
         operate_checks = operate_company(
-            scenario, built.recording_org, built.librarian, workspace
+            scenario, built.recording_org, built.librarian, workspace, gates
         )
 
         result = ScenarioResult(

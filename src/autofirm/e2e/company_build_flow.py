@@ -24,6 +24,8 @@ import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from autofirm.artifacts.business_document_builder import build_business_document
+from autofirm.artifacts.business_document_spec import DocumentSection, DocumentSpec
 from autofirm.capabilities.capability_recording_org import CapabilityRecordingOrg
 from autofirm.comms.append_only_audit_sink import InMemoryMessageAuditSink
 from autofirm.comms.dynamic_agent_registry import DynamicAgentRegistry, MessageHandler
@@ -34,7 +36,14 @@ from autofirm.document_store.filed_document_record import (
     DeliverableKind,
     FiledDocumentRecord,
 )
-from autofirm.document_store.librarian_filing_service import LibrarianFilingService
+from autofirm.document_store.librarian_filing_service import (
+    LibrarianFilingService,
+    release_artifact_ref_for,
+)
+from autofirm.e2e.deliverable_kind_to_review_artifact_kind import review_artifact_kind_for
+from autofirm.e2e.docx_spec_round_trip_extractor import build_document_spec_round_trip
+from autofirm.e2e.e2e_delivery_gates import E2eDeliveryGates, build_e2e_delivery_gates
+from autofirm.e2e.gate_then_file import gate_then_file
 from autofirm.e2e.isolated_company_workspace import IsolatedCompanyWorkspace
 from autofirm.e2e.public_company_scenarios import PublicCompanyScenario
 from autofirm.e2e.scenario_result_contract import (
@@ -51,6 +60,7 @@ from autofirm.org.org_identifiers import (
 )
 from autofirm.org.org_lifecycle_events import OrgEventKind
 from autofirm.org.role_charter_contract import ROOT_AUTHOR, RoleCharter
+from autofirm.output_review.reviewable_artifact_contract import ReviewableArtifact
 
 # A fixed founding epoch so the build's audit trail is deterministic + assertable.
 FOUNDING_EPOCH = datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC)
@@ -76,18 +86,29 @@ class BuiltCompany:
 
 
 def build_company(
-    scenario: PublicCompanyScenario, workspace: IsolatedCompanyWorkspace
+    scenario: PublicCompanyScenario,
+    workspace: IsolatedCompanyWorkspace,
+    gates: E2eDeliveryGates | None = None,
 ) -> BuiltCompany:
     """Stand ``scenario`` up in its isolated ``workspace`` and prove it came up.
 
     The company is grown through :class:`CapabilityRecordingOrg`, so the capability
     registry GROWS as roles are founded + hired — the static feature list is gone.
+
+    Args:
+        scenario: The public-data company to build.
+        workspace: The isolated, deletable workspace to build it in.
+        gates: The output-review + release gate pair the founding charter clears
+            before filing. Threaded by the harness so build + operate share one
+            audited gate; when omitted a fresh real pair is built (the charter is
+            always gated — the librarian refuses an un-released filing).
     """
+    delivery_gates = gates if gates is not None else build_e2e_delivery_gates()
     rec, founded_check = _found_org(scenario)
     rec, gap_check = _auto_create_and_hire(rec, scenario)
     growth_check = _capability_registry_grew(rec, scenario)
     comms_check = _wire_comms_and_deliver_kickoff(rec, scenario)
-    librarian, docs_check = _file_founding_documents(scenario, workspace)
+    librarian, docs_check = _file_founding_documents(scenario, workspace, delivery_gates)
     return BuiltCompany(
         recording_org=rec,
         librarian=librarian,
@@ -252,26 +273,77 @@ def _wire_comms_and_deliver_kickoff(
     )
 
 
+def _founding_charter_spec(scenario: PublicCompanyScenario) -> DocumentSpec:
+    """Author a real founding-charter document spec from the scenario's public facts."""
+    role_name = scenario.gap_role_id.replace("-", " ")
+    return DocumentSpec(
+        title=f"{scenario.name} Founding Charter",
+        executive_summary=(
+            f"{scenario.name} is founded to operate in {scenario.industry} under an "
+            "auditable, fail-closed operating model. This charter records the founding "
+            "mandate and the first capability the company stands up."
+        ),
+        sections=(
+            DocumentSection(
+                "Mandate",
+                (
+                    f"The CEO owns enterprise value for {scenario.name}.",
+                    "The company is governed by an auditable, fail-closed operating model.",
+                ),
+            ),
+            DocumentSection(
+                "Founding Capability",
+                (
+                    f"A {role_name} role is auto-created to close the first capability gap.",
+                    f"Rationale: {scenario.gap_rationale}.",
+                ),
+            ),
+        ),
+    )
+
+
 def _file_founding_documents(
-    scenario: PublicCompanyScenario, workspace: IsolatedCompanyWorkspace
+    scenario: PublicCompanyScenario,
+    workspace: IsolatedCompanyWorkspace,
+    gates: E2eDeliveryGates,
 ) -> tuple[LibrarianFilingService, FeatureCheck]:
-    """File a founding-charter deliverable into the company's isolated store.
+    """Render, REVIEW, release, then file the founding charter into the isolated store.
 
     Proves the document store catalogues a deliverable under the injected
-    ``.autofirm/`` boundary for this company, fail-closed, and can retrieve it.
+    ``.autofirm/`` boundary for this company ONLY after the real ``.docx`` clears the
+    output-review gate and an authorised, ref-bound release is granted (P4) — no
+    deliverable reaches a human un-reviewed, and the filing is fail-closed.
     """
     librarian = LibrarianFilingService(workspace.boundary)
+    spec = _founding_charter_spec(scenario)
+    destination = workspace.deliverables_dir() / "founding-charter.docx"
+    written = build_business_document(spec, destination)  # a REAL .docx on disk
     record = FiledDocumentRecord(
         logical_id="founding-charter",
         company=scenario.slug,
         kind=DeliverableKind.REPORT,
         canonical_name=f"{scenario.name} Founding Charter",
-        extension="md",
+        extension="docx",
         version=1,
         provenance="e2e.company_build_flow:found",
         created_at=FOUNDING_EPOCH,
     )
-    entry = librarian.file(record)
+    # Bind the reviewable handle to THIS record; FILE_OPENS_CLEAN reads ``written``
+    # and SPEC_ROUND_TRIP gets a GENUINE title re-read from the file bytes.
+    artifact = ReviewableArtifact(
+        artifact_ref=release_artifact_ref_for(record),
+        kind=review_artifact_kind_for(record.kind),
+        path=written,
+        spec_round_trip=build_document_spec_round_trip(spec.title, written),
+    )
+    entry = gate_then_file(
+        librarian,
+        record,
+        artifact=artifact,
+        gate=gates.review_gate,
+        release_gate=gates.release_gate,
+        reason="founding charter passed the deterministic output-review floor",
+    )
     filed = (
         len(librarian.find(company=scenario.slug)) == 1
         and entry.record.logical_id == "founding-charter"
