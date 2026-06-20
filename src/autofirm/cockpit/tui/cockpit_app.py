@@ -48,7 +48,9 @@ from autofirm.cockpit.tui.spend_snapshot_panel import SpendSnapshotPanel
 
 __all__ = ["CockpitApp"]
 
-_T = TypeVar("_T")
+# Typing-only TypeVar: used solely in deferred (string) annotations on _refresh_panel,
+# never evaluated at runtime — its name/binding has no behavioural effect.
+_T = TypeVar("_T")  # pragma: no mutate (typing-only)
 
 # The fixed cadence (seconds) at which every snapshot is re-pulled in one coalesced refresh.
 _DEFAULT_REFRESH_INTERVAL = 2.0

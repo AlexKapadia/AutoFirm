@@ -38,7 +38,9 @@ from textual.widgets import Static
 
 __all__ = ["CockpitTablePanel"]
 
-_PanelState = Literal["empty", "populated", "error"]
+# Typing-only Literal alias: never evaluated at runtime (`from __future__ import
+# annotations`); the runtime state strings are independent literals asserted behaviourally.
+_PanelState = Literal["empty", "populated", "error"]  # pragma: no mutate (typing-only)
 
 
 class CockpitTablePanel(Vertical):
@@ -73,7 +75,9 @@ class CockpitTablePanel(Vertical):
         """Lay out the title, the (initially hidden) subtitle, and the body."""
         yield Static(self._title_text, classes="panel-title")
         yield Static("", classes="panel-subtitle")
-        yield Static("", classes="panel-body")
+        # Initial body content is always overwritten by _repaint_body() in on_mount before the
+        # first paint, so the "" default is unobservable (equivalent mutant).
+        yield Static("", classes="panel-body")  # pragma: no mutate (overwritten in on_mount)
 
     def on_mount(self) -> None:
         """Hide the empty subtitle and paint the initial (empty) state."""

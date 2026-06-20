@@ -44,12 +44,12 @@ __all__ = [
 class EpochLike(Protocol):
     """The kill-switch epoch fields the header renders (read-only, no gateway import)."""
 
-    @property
+    @property  # pragma: no mutate (Protocol stub: @property is static-typing-only)
     def version(self) -> int:
         """The monotonic epoch version (a reset/re-arm bumps it)."""
         ...
 
-    @property
+    @property  # pragma: no mutate (Protocol stub: @property is static-typing-only)
     def tripped(self) -> bool:
         """``True`` when the global egress kill-switch is engaged (halt)."""
         ...
@@ -58,22 +58,22 @@ class EpochLike(Protocol):
 class EventLike(Protocol):
     """The recorded-event fields the event-log panel renders (read-only, no eventlog import)."""
 
-    @property
+    @property  # pragma: no mutate (Protocol stub: @property is static-typing-only)
     def seq(self) -> int:
         """The monotonic, strictly-increasing sequence number."""
         ...
 
-    @property
+    @property  # pragma: no mutate (Protocol stub: @property is static-typing-only)
     def kind(self) -> object:
         """The event kind; rendered via ``str(...)`` (a ``StrEnum`` yields its value)."""
         ...
 
-    @property
+    @property  # pragma: no mutate (Protocol stub: @property is static-typing-only)
     def source(self) -> str:
         """The non-blank provenance string (who/what produced the event)."""
         ...
 
-    @property
+    @property  # pragma: no mutate (Protocol stub: @property is static-typing-only)
     def recorded_at(self) -> datetime:
         """When the event was recorded (tz-aware; injected clock, never wall-clock)."""
         ...
