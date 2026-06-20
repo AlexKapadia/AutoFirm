@@ -31,7 +31,15 @@ on:
     branches: ["main"]
   schedule:
     - cron: "0 4 * * *" # nightly mutation backstop (04:00 UTC); fast gates still run per-push
-  workflow_dispatch: {} # allow on-demand mutation runs
+  workflow_dispatch:
+    # On-demand mutation runs. §7.2: full-tree scope has cancelled at 6h+, so
+    # allow scoping a dispatch to changed/critical modules. Empty = full tree
+    # (the nightly/schedule behaviour is unchanged).
+    inputs:
+      paths:
+        description: "Optional space-separated module paths to scope the mutation gate (default: full tree)"
+        required: false
+        default: ""
 
 # Least privilege: read-only token (CLAUDE.md §5.6); no write scopes needed.
 permissions:
@@ -135,8 +143,18 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[test,artifacts]"
 
-      - name: Run the full mutation gate (fail-closed on any survivor)
-        # The helper runs `mutmut run` over pyproject's paths_to_mutate, then
-        # grades the result cache directly (mutmut's own `results` printer is
-        # broken under Python 3.13 + pony-orm). Non-zero exit on any survivor.
-        run: python scripts/run_mutation_gate.py
+      - name: Run the mutation gate (fail-closed on any survivor)
+        # The helper runs `mutmut run` over pyproject's paths_to_mutate (or the
+        # dispatch-supplied subset via --paths), then grades the result cache
+        # directly (mutmut's own `results` printer is broken under Python 3.13 +
+        # pony-orm). Non-zero exit on any survivor. The dispatch input is passed
+        # via env, never interpolated into the shell, to avoid script injection
+        # (GitHub Actions security best practice).
+        env:
+          MUTATION_PATHS: ${{ inputs.paths }}
+        run: |
+          if [ -n "$MUTATION_PATHS" ]; then
+            python scripts/run_mutation_gate.py --paths $MUTATION_PATHS
+          else
+            python scripts/run_mutation_gate.py
+          fi

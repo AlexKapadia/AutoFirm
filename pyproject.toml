@@ -186,7 +186,11 @@ exclude_lines = [
 # Mutmut — mutation gate; the ACCEPTANCE SIGNAL (ADR-001 §2, §3 step 6).
 # -----------------------------------------------------------------------------
 [tool.mutmut]
-paths_to_mutate = "src/autofirm/"
+# W3-BRANCH SCOPE (temporary): narrowed to W3's contribution so the on-demand
+# Linux-CI mutation dispatch completes well under the §7.2 6h cancel cap (the
+# full tree on this branch carries W1/W2/W5 too and would cancel). MUST be
+# restored to "src/autofirm/" before this branch merges to main (tracked).
+paths_to_mutate = "src/autofirm/bootstrap/,src/autofirm/runtime/"
 tests_dir = "tests/"
 # Run pytest without the coverage gate during mutation (coverage gating is a
 # separate step); -x stops at the first failure so a killed mutant returns fast.
