@@ -41,6 +41,7 @@ from autofirm.output_review.correction_send_back_builder import (
 from autofirm.output_review.default_output_review_gate_factory import (
     build_default_output_review_gate,
 )
+from autofirm.output_review.delivery_admission_guard import require_authorised_release
 from autofirm.output_review.fast_lint_check import FastLintCheck
 from autofirm.output_review.file_opens_clean_check import (
     FileOpenProbe,
@@ -119,4 +120,5 @@ __all__ = [
     "VisualIntegrityLintCheck",
     "build_correction_send_back",
     "build_default_output_review_gate",
+    "require_authorised_release",
 ]

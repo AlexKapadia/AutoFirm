@@ -22,10 +22,30 @@ from autofirm.document_store.canonical_document_path_scheme import (
 )
 from autofirm.document_store.filed_document_record import DeliverableKind
 from autofirm.document_store.librarian_filing_service import (
+    CatalogEntry,
     LibrarianFilingError,
     LibrarianFilingService,
 )
-from tests.document_store.conftest import filed_document_records, make_record
+from tests.document_store.conftest import (
+    authorised_release_for,
+    filed_document_records,
+    make_record,
+)
+
+
+def _file_ok(
+    librarian: LibrarianFilingService, record: object
+) -> CatalogEntry:
+    """File ``record`` with a genuine authorised, ref-matching release (happy path).
+
+    A thin helper so these pre-P4 tests assert filing/catalog behaviour without
+    re-deriving the admission decision at every call site; the dedicated P4 seam
+    tests drive the guard's refusals directly.
+    """
+    return librarian.file(
+        record,  # type: ignore[arg-type]
+        release_decision=authorised_release_for(record),  # type: ignore[arg-type]
+    )
 
 # A synthetic, POSIX-absolute store root for the property tests, which build a
 # fresh librarian per example (so they cannot share a function-scoped fixture).
@@ -45,7 +65,7 @@ def test_filing_lands_under_the_sensitive_root(
     librarian: LibrarianFilingService, sensitive_root: str
 ) -> None:
     """A filed document's absolute path is under the gitignored .autofirm/ root."""
-    entry = librarian.file(make_record())
+    entry = _file_ok(librarian, make_record())
     assert entry.absolute_path.startswith(sensitive_root + "/")
     assert entry.relative_path == canonical_relative_path_for(entry.record)
 
@@ -53,9 +73,9 @@ def test_filing_lands_under_the_sensitive_root(
 @pytest.mark.unit
 def test_refile_same_version_is_refused(librarian: LibrarianFilingService) -> None:
     """Re-filing the same (logical_id, version) is refused (never overwrite)."""
-    librarian.file(make_record(version=1))
+    _file_ok(librarian, make_record(version=1))
     with pytest.raises(LibrarianFilingError, match="already filed"):
-        librarian.file(make_record(version=1, canonical_name="Different Name"))
+        _file_ok(librarian, make_record(version=1, canonical_name="Different Name"))
 
 
 @pytest.mark.unit
@@ -63,8 +83,8 @@ def test_new_version_of_same_document_is_allowed(
     librarian: LibrarianFilingService,
 ) -> None:
     """A higher version of the same document files into its own folder."""
-    librarian.file(make_record(version=1))
-    entry2 = librarian.file(make_record(version=2))
+    _file_ok(librarian, make_record(version=1))
+    entry2 = _file_ok(librarian, make_record(version=2))
     assert "/v2/" in entry2.relative_path
     assert len(librarian.list_all()) == 2
 
@@ -91,9 +111,9 @@ def test_different_document_colliding_on_path_is_refused(
 
     shared = "acme/report/shared/v1/x.pdf"
     monkeypatch.setattr(svc, "canonical_relative_path_for", lambda _r: shared)
-    librarian.file(make_record(logical_id="alpha", version=1))
+    _file_ok(librarian, make_record(logical_id="alpha", version=1))
     with pytest.raises(LibrarianFilingError, match="already owned by document"):
-        librarian.file(make_record(logical_id="beta", version=1))
+        _file_ok(librarian, make_record(logical_id="beta", version=1))
 
 
 @pytest.mark.security
@@ -109,7 +129,7 @@ def test_boundary_escape_is_refused_as_filing_error(
 
     monkeypatch.setattr(svc, "canonical_relative_path_for", lambda _r: "../escape.pdf")
     with pytest.raises(LibrarianFilingError, match="breached the store boundary"):
-        librarian.file(make_record())
+        _file_ok(librarian, make_record())
 
 
 @pytest.mark.security
@@ -121,16 +141,16 @@ def test_absolute_path_from_scheme_is_refused(
 
     monkeypatch.setattr(svc, "canonical_relative_path_for", lambda _r: "/etc/passwd")
     with pytest.raises(LibrarianFilingError):
-        librarian.file(make_record())
+        _file_ok(librarian, make_record())
 
 
 @pytest.mark.unit
 def test_catalog_is_append_only_snapshot(librarian: LibrarianFilingService) -> None:
     """list_all returns a snapshot tuple that cannot mutate the catalog."""
-    librarian.file(make_record(logical_id="a", version=1))
+    _file_ok(librarian, make_record(logical_id="a", version=1))
     snapshot = librarian.list_all()
     assert isinstance(snapshot, tuple)
-    librarian.file(make_record(logical_id="b", version=1))
+    _file_ok(librarian, make_record(logical_id="b", version=1))
     # The earlier snapshot is unchanged; the live catalog grew.
     assert len(snapshot) == 1
     assert len(librarian.list_all()) == 2
@@ -139,9 +159,9 @@ def test_catalog_is_append_only_snapshot(librarian: LibrarianFilingService) -> N
 @pytest.mark.unit
 def test_find_filters_by_company_kind_and_id(librarian: LibrarianFilingService) -> None:
     """Find returns exactly the entries matching every provided filter (AND)."""
-    librarian.file(make_record(logical_id="r1", company="acme", kind=DeliverableKind.REPORT))
-    librarian.file(make_record(logical_id="m1", company="acme", kind=DeliverableKind.MODEL))
-    librarian.file(make_record(logical_id="r2", company="globex", kind=DeliverableKind.REPORT))
+    _file_ok(librarian, make_record(logical_id="r1", company="acme", kind=DeliverableKind.REPORT))
+    _file_ok(librarian, make_record(logical_id="m1", company="acme", kind=DeliverableKind.MODEL))
+    _file_ok(librarian, make_record(logical_id="r2", company="globex", kind=DeliverableKind.REPORT))
 
     acme = librarian.find(company="acme")
     assert {e.record.logical_id for e in acme} == {"r1", "m1"}
@@ -174,9 +194,9 @@ def test_append_only_and_complete_over_batches(records: list[object]) -> None:
         if key in seen_versions:
             # Duplicate identity+version must be refused (never overwrite).
             with pytest.raises(LibrarianFilingError):
-                librarian.file(record)  # type: ignore[arg-type]
+                _file_ok(librarian, record)
             continue
-        entry = librarian.file(record)  # type: ignore[arg-type]
+        entry = _file_ok(librarian, record)
         seen_versions.add(key)
         accepted.append(record)
         # Data separation: every accepted filing resolves under the store.
@@ -198,7 +218,7 @@ def test_every_filing_resolves_under_store_or_is_refused(records: list[object]) 
     librarian, sensitive_root = _fresh_librarian()
     for record in records:
         try:
-            entry = librarian.file(record)  # type: ignore[arg-type]
+            entry = _file_ok(librarian, record)
         except LibrarianFilingError:
             continue  # refused filings never land anywhere — acceptable
         assert entry.absolute_path.startswith(sensitive_root + "/")
