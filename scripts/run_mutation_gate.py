@@ -145,6 +145,26 @@ def _grade_cache() -> int:
         rows = conn.execute(
             "SELECT status, COUNT(*) FROM mutant GROUP BY status"
         ).fetchall()
+        # Enumerate the individual survivor mutants (everything not killed and not
+        # explicitly skipped) so a CI run REPORTS WHICH mutants survived, not just
+        # how many. We join Mutant -> Line -> SourceFile (Pony ORM maps the FK
+        # attributes to integer columns of the same name) to recover a stable,
+        # human-actionable identifier: the source file, the line number + text the
+        # mutant was applied to, the per-line mutant index (mutmut's own handle for
+        # `mutmut show <file> <index>`), and the recorded status. This is purely
+        # diagnostic output -- it never touches the PASS/FAIL decision below, which
+        # is still computed from the status counts (fail-closed, CLAUDE.md §5.6).
+        killed_csv = ",".join(f"'{s}'" for s in sorted(_KILLED_STATUSES))
+        skipped_csv = ",".join(f"'{s}'" for s in sorted(_SKIPPED_STATUSES))
+        survivor_rows = conn.execute(
+            "SELECT sf.filename, l.line_number, m.\"index\", m.status, l.line "
+            "FROM mutant m "
+            "JOIN line l ON m.line = l.id "
+            "JOIN sourcefile sf ON l.sourcefile = sf.id "
+            f"WHERE m.status NOT IN ({killed_csv}) "
+            f"AND m.status NOT IN ({skipped_csv}) "
+            "ORDER BY sf.filename, l.line_number, m.\"index\""
+        ).fetchall()
     finally:
         conn.close()
 
@@ -173,6 +193,16 @@ def _grade_cache() -> int:
     if survivors > 0:
         # fail-closed: any survivor means a test is too weak (CLAUDE.md §3.6) ->
         # add a HARDER adversarial test that kills it, then re-run. RED gate.
+        # Enumerate each survivor so the gate REPORTS WHICH mutants escaped (so the
+        # fix is actionable: each line below is a test gap to close). The count is
+        # authoritative; this list is its breakdown.
+        print(f"SURVIVING MUTANTS ({survivors}):")
+        for filename, line_number, index, status, line_text in survivor_rows:
+            source = (line_text or "").strip()
+            location = f"{filename}:{line_number} (mutant #{index}, {status})"
+            print(f"  - {location}")
+            if source:
+                print(f"      line: {source}")
         print("MUTATION GATE: FAILED -- surviving mutant(s); the suite has a gap.")
         return 1
     print("MUTATION GATE: PASSED -- every mutant killed (0 survivors).")
