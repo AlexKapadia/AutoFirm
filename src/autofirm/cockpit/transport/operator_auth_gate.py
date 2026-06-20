@@ -38,7 +38,7 @@ __all__ = ["OPERATOR_TOKEN_ENV_VAR", "AuthError", "authenticate_operator"]
 
 # The environment key the configured operator secret is read from (never hard-coded, never
 # logged). The CLI passes the PRESENTED token separately via --token; the two are compared.
-OPERATOR_TOKEN_ENV_VAR = "AUTOFIRM_COCKPIT_TOKEN"
+OPERATOR_TOKEN_ENV_VAR = "AUTOFIRM_COCKPIT_TOKEN"  # nosec B105 - env-var NAME, not a secret
 
 
 class AuthError(Exception):
