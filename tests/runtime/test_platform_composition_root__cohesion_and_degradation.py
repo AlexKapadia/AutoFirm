@@ -8,6 +8,7 @@ never produces a whole-platform block.
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import UTC, datetime
 
 import pytest
@@ -19,7 +20,12 @@ from autofirm.runtime.platform_composition_root import (
     build_platform,
 )
 from autofirm.runtime.platform_config import PlatformConfig
-from autofirm.runtime.platform_runtime import Platform, ProbeResult, WiredCapability
+from autofirm.runtime.platform_runtime import (
+    Platform,
+    ProbeResult,
+    SupervisedLoop,
+    WiredCapability,
+)
 
 _NOW = datetime(2025, 1, 1, tzinfo=UTC)
 
@@ -212,3 +218,69 @@ def test_build_platform__defaults_now_propagates_a_real_instant_to_every_probe()
     """
     platform = build_platform(_healthy_config())  # now omitted -> resolved at the edge
     assert all(cap.probe().passed for cap in platform.capabilities)
+
+
+# ---------------------------------------------------------------------------
+# Mutation-hardening (CLAUDE.md §3.6): pin the frozen-ness of every runtime
+# value type, the EXACT KeyError f-string (repr of the missing id), and the
+# Platform field defaults so a default-value mutant is caught.
+# ---------------------------------------------------------------------------
+
+
+def test_capability__unknown_id_keyerror_message_carries_the_exact_repr_of_the_id() -> None:
+    """The lookup KeyError embeds the EXACT repr of the requested id (kills f-string mutants).
+
+    A ``match=`` substring is not enough: a mutant dropping ``!r`` (or the literal text) would
+    still leave the bare id in the message, so the message is asserted byte-exact against the
+    repr-quoted f-string. KeyError's ``str()`` is itself a repr of the single arg, hence the
+    double-quoting via ``repr(...)``.
+    """
+    platform = build_platform(_healthy_config(), now=_NOW)
+    with pytest.raises(KeyError) as excinfo:
+        platform.capability("absent-cap")
+    assert str(excinfo.value) == repr("no wired capability 'absent-cap'")
+
+
+def test_probe_result__is_frozen_immutable() -> None:
+    """ProbeResult is a frozen value type (kills the ``frozen=True`` -> False mutant)."""
+    result = ProbeResult(passed=True, reason="ok")
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        result.passed = False  # type: ignore[misc]
+
+
+def test_wired_capability__is_frozen_immutable() -> None:
+    """WiredCapability is a frozen ledger entry (kills the ``frozen=True`` -> False mutant)."""
+    cap = WiredCapability(
+        capability_id="x",
+        criticality=Criticality.REQUIRED,
+        degraded=False,
+        reason="r",
+        probe=lambda: ProbeResult(passed=True, reason="ok"),
+    )
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        cap.capability_id = "y"  # type: ignore[misc]
+
+
+def test_supervised_loop__is_frozen_immutable() -> None:
+    """SupervisedLoop is a frozen inventory entry (kills the ``frozen=True`` -> False mutant)."""
+    loop = SupervisedLoop(name="n", tick=lambda: None)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        loop.name = "m"  # type: ignore[misc]
+
+
+def test_platform__is_frozen_immutable() -> None:
+    """Platform is the frozen, composed object graph (kills the ``frozen=True`` -> False mutant)."""
+    platform = Platform(capabilities=())
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        platform.config_fingerprint = "mutated"  # type: ignore[misc]
+
+
+def test_platform__field_defaults_are_empty_loops_and_empty_fingerprint() -> None:
+    """An unparameterised Platform defaults to no loops and an empty fingerprint (kills defaults).
+
+    Pins the exact field defaults (``loops == ()``, ``config_fingerprint == ""``) so a mutant
+    changing either default — e.g. a non-empty tuple or a non-empty string — is caught.
+    """
+    platform = Platform(capabilities=())
+    assert platform.loops == ()
+    assert platform.config_fingerprint == ""

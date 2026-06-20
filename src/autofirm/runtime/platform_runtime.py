@@ -47,7 +47,8 @@ class ProbeResult:
 # data and returns a :class:`ProbeResult`. It MUST NOT raise on a degraded capability (it
 # reports ``passed=False`` with a reason); an unexpected raise is caught by the self-test and
 # treated as a probe failure (fail-closed).
-Probe = Callable[[], ProbeResult]
+# pragma: no mutate justification — a type alias has no runtime-observable behaviour to assert.
+Probe = Callable[[], ProbeResult]  # pragma: no mutate
 
 
 @dataclass(frozen=True)

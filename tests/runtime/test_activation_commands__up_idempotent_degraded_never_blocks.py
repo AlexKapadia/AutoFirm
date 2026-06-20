@@ -8,7 +8,12 @@ from datetime import UTC, datetime
 import pytest
 
 import autofirm.runtime.activation_commands as ac
-from autofirm.runtime.activation_bootstrap_steps import MappingEnvProbe, activation_steps
+from autofirm.bootstrap.bootstrap_step_contract import Criticality
+from autofirm.runtime.activation_bootstrap_steps import (
+    MappingEnvProbe,
+    _FactStep,
+    activation_steps,
+)
 from autofirm.runtime.activation_commands import (
     EXIT_FAILED,
     EXIT_OK,
@@ -225,3 +230,50 @@ def test_commands__propagate_the_injected_instant_to_the_composition_root(
     run_status(_KEYED, now=_NOW)
     run_down(_KEYED, now=_NOW)
     assert seen == [_NOW, _NOW, _NOW]
+
+
+# ---------------------------------------------------------------------------
+# Mutation-hardening (CLAUDE.md §3.6): pin the _FactStep value type's frozen-ness
+# and that its id/requires/criticality are computed PROPERTIES mapping onto the
+# underlying fields (kills the ``frozen=True`` and dropped-``@property`` mutants).
+# ---------------------------------------------------------------------------
+
+
+def _sample_fact_step() -> _FactStep:
+    return _FactStep(
+        fact="deps.installed",
+        requires_facts=("venv.present",),
+        step_criticality=Criticality.REQUIRED,
+    )
+
+
+def test_fact_step__is_frozen_immutable() -> None:
+    """A _FactStep is a frozen convergent-operator value (kills the ``frozen=True`` mutant)."""
+    step = _sample_fact_step()
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        step.fact = "other"  # type: ignore[misc]
+
+
+def test_fact_step__id_property_returns_the_fact_name() -> None:
+    """``id`` is a computed PROPERTY returning the fact name (kills the dropped-decorator mutant).
+
+    Without the decorator ``step.id`` would be the bound method, not the string, so an exact
+    equality against the underlying ``fact`` — not mere truthiness — catches the regression.
+    """
+    step = _sample_fact_step()
+    assert step.id == "deps.installed"
+    assert step.id == step.fact  # the property maps exactly onto the field
+
+
+def test_fact_step__requires_property_returns_the_required_fact_edges() -> None:
+    """``requires`` is a PROPERTY returning the DAG edges (kills the dropped-decorator mutant)."""
+    step = _sample_fact_step()
+    assert step.requires == ("venv.present",)
+    assert step.requires == step.requires_facts  # the property maps exactly onto the field
+
+
+def test_fact_step__criticality_property_returns_the_fail_mode_selector() -> None:
+    """``criticality`` is a PROPERTY returning the fail-mode selector (kills dropped decorator)."""
+    step = _sample_fact_step()
+    assert step.criticality is Criticality.REQUIRED
+    assert step.criticality is step.step_criticality  # the property maps exactly onto the field

@@ -56,3 +56,31 @@ def test_config__is_frozen_immutable() -> None:
     except dataclasses.FrozenInstanceError:
         return
     raise AssertionError("PlatformConfig must be frozen/immutable")
+
+
+# ---------------------------------------------------------------------------
+# Mutation-hardening (CLAUDE.md §3.6): pin the EXACT dataclass field DEFAULTS
+# directly (constructing with no args), independent of from_environment, so a
+# mutant changing any default value is caught. Also pin the module constant.
+# ---------------------------------------------------------------------------
+
+
+def test_default_gateway_url_constant_is_the_exact_local_address() -> None:
+    """The default gateway URL constant is pinned byte-exact (kills string-default mutants)."""
+    assert DEFAULT_GATEWAY_URL == "http://localhost:4000"
+
+
+def test_platform_config__bare_construction_uses_the_documented_field_defaults() -> None:
+    """A no-args PlatformConfig carries EXACTLY its documented field defaults (kills defaults).
+
+    Exercises the dataclass field defaults themselves — a path ``from_environment`` does not
+    take — so a mutant altering any default (the providers set, gateway URL, state dir, or the
+    feature flags) is caught here even though the env-resolution path overrides some of them.
+    """
+    config = PlatformConfig()
+    assert config.present_providers == frozenset()  # default: no providers present
+    assert config.gateway_url == DEFAULT_GATEWAY_URL  # default sourced from the constant
+    assert config.gateway_url == "http://localhost:4000"  # ... and that constant is exact
+    assert config.state_dir == Path(".autofirm")  # default state directory
+    assert config.embedding_enabled is True  # OPTIONAL embedding default-on
+    assert config.analysis_enabled is False  # analysis default-OFF (kept out of runtime closure)
