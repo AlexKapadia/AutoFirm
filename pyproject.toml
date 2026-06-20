@@ -196,7 +196,10 @@ tests_dir = "tests/"
 # separate step); -x stops at the first failure so a killed mutant returns fast.
 # The per-test `timeout` ini option (pytest.ini_options) bounds infinite-loop
 # mutants so the mutation gate cannot hang on a mutated loop bound.
-runner = "python -m pytest -x -q -p no:cacheprovider --no-header --rootdir=. -o addopts='' -o pythonpath=src tests"
+# W3-BRANCH SCOPE (temporary): per-mutant runner narrowed to the W3 suites so each
+# mutant runs ~hundreds of tests, not the full ~1800 — the full-suite-per-mutant run
+# hit the 6h CI cancel. MUST be restored to "tests" before merging to main (tracked).
+runner = "python -m pytest -x -q -p no:cacheprovider --no-header --rootdir=. -o addopts='' -o pythonpath=src tests/bootstrap tests/runtime"
 
 # -----------------------------------------------------------------------------
 # Bandit — Python SAST (ADR-001 §4). Excludes tests (assert is expected there).
