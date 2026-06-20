@@ -1,0 +1,82 @@
+/*
+ * cockpit_theme.tcss — the operator cockpit's deliberate Textual theme.
+ *
+ * Institution-grade craft (CLAUDE.md §3.14): a real spacing scale, a clear hierarchy
+ * (a docked header carrying the safety-critical kill-switch badge, a calm 2x2 panel
+ * grid, a footer of live keybindings), restrained borders, and colour reserved for
+ * meaning — the kill-switch ARMED (success) vs TRIPPED (error) state. No framework
+ * defaults left to chance; every value is chosen.
+ */
+
+Screen {
+    background: $surface;
+    color: $text;
+}
+
+/* --- Header: title on the left, the kill-switch badge prominent on the right --- */
+#cockpit-header {
+    dock: top;
+    height: 3;
+    padding: 1 2;
+    background: $panel;
+    border-bottom: tall $primary 40%;
+}
+
+#cockpit-title {
+    width: 1fr;
+    content-align: left middle;
+    text-style: bold;
+    color: $accent;
+}
+
+.kill-switch {
+    width: auto;
+    min-width: 34;
+    padding: 0 2;
+    content-align: right middle;
+    text-style: bold;
+    color: $text-muted;
+}
+
+.kill-switch.armed {
+    color: $success;
+}
+
+.kill-switch.tripped {
+    color: $error;
+    background: $error 20%;
+}
+
+.kill-switch.unavailable {
+    color: $warning;
+}
+
+/* --- Body: a balanced 2x2 grid of read-only panels --- */
+#cockpit-grid {
+    grid-size: 2 2;
+    grid-gutter: 1 2;
+    padding: 1 2;
+}
+
+.cockpit-panel {
+    height: 100%;
+    padding: 1 2;
+    border: round $primary 50%;
+    background: $boost;
+}
+
+.panel-title {
+    text-style: bold;
+    color: $accent;
+    padding: 0 0 1 0;
+}
+
+.panel-subtitle {
+    color: $text-muted;
+    text-style: italic;
+    padding: 0 0 1 0;
+}
+
+.panel-body {
+    height: 1fr;
+}

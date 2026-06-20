@@ -143,3 +143,21 @@ source_modules =
     autofirm.cockpit.adapters
 forbidden_modules =
     autofirm.cockpit.composition
+
+# The Textual TUI (C4) renders read-only snapshots ONLY via the composition root + read-models:
+# it may NOT reach past that edge into the backend adapters or the standalone event log directly
+# (it reads/records via the assembled CockpitApplication, and renders the read-model DTOs). The
+# on-main fence for the tui already lives in the seam contract above; this adds the adapter/
+# eventlog fence so the tui stays a pure presentation layer (cockpit-research/PLAN.md §5).
+[importlinter:contract:cockpit-tui-renders-only-via-composition]
+name = Cockpit tui must not import the adapters or event log directly
+type = forbidden
+# DIRECT-import rule: the tui binds to composition/read-models; the indirect chain
+# (tui -> composition -> {adapters, eventlog}) is the wiring edge and is permitted, exactly
+# like the transport contract. Naming an adapter or the event-log module itself still fails.
+allow_indirect_imports = True
+source_modules =
+    autofirm.cockpit.tui
+forbidden_modules =
+    autofirm.cockpit.adapters
+    autofirm.cockpit.eventlog

@@ -1,13 +1,14 @@
-"""The cockpit command-line entry surface: ``version`` / ``run`` / ``replay`` (deny-by-default).
+"""The cockpit command-line entry surface: ``version`` / ``run`` / ``replay`` / ``tui``.
 
 What this does
 --------------
-Defines :func:`main`, the argparse-driven CLI behind ``python -m autofirm.cockpit``. Three
+Defines :func:`main`, the argparse-driven CLI behind ``python -m autofirm.cockpit``. Four
 subcommands: ``version`` prints the cockpit version and exits 0 with NO auth (it leaks nothing);
 ``run`` authenticates the operator, assembles the cockpit, and prints a read-only status
 snapshot; ``replay`` authenticates and prints the recorded event log (read through composition,
-never the event-log module directly). The presented operator token arrives via ``--token`` and
-is compared against the configured secret by the fail-closed
+never the event-log module directly); ``tui`` authenticates and launches the read-only Textual
+cockpit (assembled identically to ``run``). The presented operator token arrives via ``--token``
+and is compared against the configured secret by the fail-closed
 :mod:`~autofirm.cockpit.transport.operator_auth_gate`. An unknown or missing subcommand, or a
 failed authentication, returns a NON-ZERO exit and emits no cockpit data (deny by default).
 
@@ -40,8 +41,10 @@ from autofirm.cockpit.composition.cockpit_composer import assemble_cockpit
 from autofirm.cockpit.composition.cockpit_config import CockpitConfig
 from autofirm.cockpit.core.cockpit_version import cockpit_version
 from autofirm.cockpit.transport.operator_auth_gate import AuthError, authenticate_operator
+from autofirm.cockpit.tui.cockpit_app import CockpitApp
+from autofirm.cockpit.tui.cockpit_read_model_protocol import CockpitReadModel
 
-__all__ = ["main"]
+__all__ = ["build_tui_app", "main"]
 
 # Process exit codes. 0 is success; every refusal/usage error is a distinct non-zero so a
 # caller (or test) can assert exactly which deny-by-default path fired.
@@ -82,8 +85,10 @@ def main(argv: Sequence[str] | None = None, *, env: Mapping[str, str] | None = N
         return _replay(
             args.token, event_log=args.event_log, currency=args.currency, env=resolved_env
         )
+    if args.command == "tui":
+        return _tui(args.token, event_log=args.event_log, currency=args.currency, env=resolved_env)
     # deny by default: no subcommand given (argparse rejects unknown ones before this).
-    print("no subcommand given; expected one of: version, run, replay", file=sys.stderr)
+    print("no subcommand given; expected one of: version, run, replay, tui", file=sys.stderr)
     return _EXIT_USAGE
 
 
@@ -119,6 +124,37 @@ def _replay(token: str | None, *, event_log: str, currency: str, env: Mapping[st
     return _EXIT_OK
 
 
+def _tui(token: str | None, *, event_log: str, currency: str, env: Mapping[str, str]) -> int:
+    """Authenticate, assemble the cockpit, and launch the read-only Textual TUI.
+
+    The cockpit is assembled identically to ``run`` (same auth gate, same composition root);
+    only the presentation differs. Construction is kept separate from the blocking ``.run()``
+    (via :func:`build_tui_app`) so a test can verify the wiring without a real terminal.
+    """
+    if (refusal := _authenticate(token, env=env)) is not None:
+        return refusal
+    app = assemble_cockpit(_config(event_log, currency))
+    tui_app = build_tui_app(app)
+    tui_app.run()  # pragma: no cover, pragma: no mutate - blocking; needs a real terminal
+    return _EXIT_OK
+
+
+def build_tui_app(read_model: CockpitReadModel) -> CockpitApp:
+    """Construct the cockpit TUI app around an assembled read model (no ``.run()`` here).
+
+    Separated from :func:`_tui` so a Pilot test can build the app and drive it headlessly,
+    while the blocking ``.run()`` (which requires a real terminal) stays out of the test path.
+
+    Args:
+        read_model: The assembled, read-only :class:`CockpitApplication` (or any value of the
+            same read shape) the TUI panels render.
+
+    Returns:
+        A constructed :class:`CockpitApp`, not yet running.
+    """
+    return CockpitApp(read_model)
+
+
 def _authenticate(token: str | None, *, env: Mapping[str, str]) -> int | None:
     """Return ``None`` if authenticated, else the auth-refused exit code (emitting no data).
 
@@ -149,6 +185,7 @@ def _build_parser() -> argparse.ArgumentParser:
     _auth_gated = (
         ("run", "assemble and show a status snapshot"),
         ("replay", "replay the event log"),
+        ("tui", "launch the read-only Textual cockpit"),
     )
     for name, summary in _auth_gated:
         command = sub.add_parser(name, help=summary)

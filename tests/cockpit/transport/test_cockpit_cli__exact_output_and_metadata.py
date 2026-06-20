@@ -104,7 +104,10 @@ def test_replay_stdout_is_byte_exact(tmp_path: Path, capsys: pytest.CaptureFixtu
 
 def test_no_subcommand_stderr_is_byte_exact(capsys: pytest.CaptureFixture[str]) -> None:
     main([], env=_env())
-    assert capsys.readouterr().err == "no subcommand given; expected one of: version, run, replay\n"
+    assert (
+        capsys.readouterr().err
+        == "no subcommand given; expected one of: version, run, replay, tui\n"
+    )
 
 
 def test_auth_refused_stderr_is_byte_exact(
@@ -135,10 +138,11 @@ def test_subcommand_help_text_is_exact() -> None:
         "version": "print the cockpit version (no auth required)",
         "run": "assemble and show a status snapshot",
         "replay": "replay the event log",
+        "tui": "launch the read-only Textual cockpit",
     }
 
 
-@pytest.mark.parametrize("command", ["run", "replay"])
+@pytest.mark.parametrize("command", ["run", "replay", "tui"])
 def test_auth_gated_argument_help_text_is_exact(command: str) -> None:
     sub = _subparsers_action(cockpit_cli._build_parser()).choices[command]
     help_by_option = {tuple(a.option_strings): a.help for a in sub._actions if a.option_strings}
