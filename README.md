@@ -100,6 +100,35 @@ asserted** — the per-company flow:
 | Engines | `finance` · `decisions` · `market_intel` · `frontdoor` · `artifacts` · `design_product` · `document_store` · `heartbeat` · `flow` | the business capabilities |
 | Validation | `e2e` | build + operate the four public companies, assert every output |
 
+## The human-facing output-review gate
+
+Anything an AI org sends to a human — a board deck, a model, a P&L — is only as
+trustworthy as the last check between the agent and the reader. AutoFirm puts an
+**independent, fail-closed gate** at that seam: **nothing reaches a human until a
+floor of deterministic checks all pass.** Seven mechanical reviewers run on every
+artifact — **accounting identity** (assets = liabilities + equity), **spec
+round-trip**, **numeric recompute**, **file-opens-clean** (the OOXML actually
+opens), **FAST lint** (formula/orphan/consistency), **IBCS** notation, and
+**visual integrity** (no truncated axes, overlap, or clipping). Their outcome is a
+single `ReviewVerdict` whose `passed` field is **derived** from the findings rather
+than set — so a "green but wrong" verdict is structurally unconstructible. A failed
+artifact enters a **bounded correction loop**, and **release authority is
+load-bearing**: the librarian delivery seam refuses to hand anything to a human
+without a passing verdict.
+
+![Why the gate exists](evidence/output_review/graphs/escape_vs_human_baseline.png)
+
+An un-reviewed human spreadsheet carries an error a large fraction of the time; the
+independent gate's **measured escape rate is 0**. Against the labelled golden set the
+gate scores **100% detection on every must-block defect class** (MECHANICAL /
+PURE_LOGIC / OMISSION), **0 / 14 escapes** of planted defects, and **0 / 4 false
+positives** on known-good controls. It is **deterministic over 3,600 repeated
+reviews** (one unique verdict digest), holds **100% line and branch coverage**, and
+is mutation-proven to **0 surviving mutants across 25 modules**.
+
+> Full methodology, statistics, and per-defect outcomes live in
+> **[`evidence/output_review/README.md`](evidence/output_review/README.md)**.
+
 ## Principles (non-negotiable)
 
 AutoFirm is built under a strict, self-activating engineering contract
