@@ -29,7 +29,19 @@ dependencies = [
   # of the stack targets (psycopg3/httpx) -- see
   # docs/architecture/experiments/concurrency-runtime-results.md.
   "anyio>=4.3",
+  # CLI-edge ONLY (W3 activation layer, B7): the `autofirm` one-command entrypoint
+  # (up/status/doctor/down). typer (pulls click) is imported SOLELY by
+  # autofirm.runtime.cli_entrypoint -- the import-linter contract
+  # `cli-framework-confined-to-cli-entrypoint` fails the build if any other module
+  # imports it, so the deterministic engine core never depends on a CLI framework
+  # (system-activation-design.md §7; ADR-001 §5 runtime/analysis split unaffected).
+  "typer>=0.12",
 ]
+
+# The ONE flawless door: `autofirm up` sets up AND activates the whole platform
+# (system-activation-design.md §1). Maps the console script to the Typer app.
+[project.scripts]
+autofirm = "autofirm.runtime.cli_entrypoint:app"
 
 [project.optional-dependencies]
 # Test toolchain (ADR-001 §2): the mutation score is the acceptance signal.
