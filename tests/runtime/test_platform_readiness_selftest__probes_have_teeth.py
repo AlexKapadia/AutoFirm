@@ -126,6 +126,10 @@ def test_selftest__a_raising_probe_is_treated_as_failure_not_swallowed() -> None
     result = run_readiness_selftest(platform)
     assert result.grade is ReadinessGrade.RED
     assert result.reports[0].reason.startswith("probe_raised:")
+    # Pin the EXACT reason including the exception type (kills the f-string-content mutant): a
+    # mutant blanking the ``type(exc).__name__`` interpolation keeps the ``probe_raised:`` prefix
+    # and so survives the startswith check — the type name is part of the diagnostic.
+    assert result.reports[0].reason == "probe_raised:RuntimeError"
 
 
 def test_selftest__degraded_capability_with_passing_probe_grades_degraded() -> None:
